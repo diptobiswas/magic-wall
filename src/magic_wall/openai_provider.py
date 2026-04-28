@@ -5,7 +5,7 @@ from typing import Any
 
 from .config import AppConfig
 from .models import NewsStory
-from .prompts import build_news_search_prompt, extract_json_object
+from .prompts import build_news_search_prompt, build_story_selection_prompt, extract_json_object
 
 
 class OpenAIProvider:
@@ -34,6 +34,29 @@ class OpenAIProvider:
         data = extract_json_object(text)
         return NewsStory.from_dict(data)
 
+    def select_story_from_candidates(
+        self,
+        *,
+        now,
+        window_minutes: int,
+        candidates: list[dict[str, Any]],
+        previous_stories: list[dict] | None = None,
+    ) -> NewsStory:
+        prompt = build_story_selection_prompt(
+            now=now,
+            window_minutes=window_minutes,
+            candidates=candidates,
+            previous_stories=previous_stories,
+        )
+        response = self.client.responses.create(
+            model=self.config.text_model,
+            input=prompt,
+            max_output_tokens=700,
+        )
+        data = extract_json_object(_response_text(response))
+        data = _fill_candidate_source_fields(data, candidates)
+        return NewsStory.from_dict(data)
+
     def generate_wallpaper(self, *, prompt: str) -> bytes:
         result = self.client.images.generate(
             model=self.config.image_model,
@@ -52,6 +75,20 @@ class OpenAIProvider:
         except ImportError as exc:
             raise RuntimeError("The openai package is not installed.") from exc
         return OpenAI(api_key=config.require_api_key())
+
+
+def _fill_candidate_source_fields(data: dict[str, Any], candidates: list[dict[str, Any]]) -> dict[str, Any]:
+    candidate_id = str(data.get("candidate_id") or "")
+    candidate = next((item for item in candidates if str(item.get("id") or "") == candidate_id), None)
+    if not candidate:
+        return data
+    merged = dict(data)
+    for key in ("source_name", "source_url", "published_at"):
+        if not merged.get(key) and candidate.get(key):
+            merged[key] = candidate.get(key)
+    if not merged.get("summary") and candidate.get("summary"):
+        merged["summary"] = candidate.get("summary")
+    return merged
 
 
 def _response_text(response: Any) -> str:

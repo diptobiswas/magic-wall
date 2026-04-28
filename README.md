@@ -1,18 +1,24 @@
 # Magic Wall
 
-Magic Wall turns a Raspberry Pi touchscreen into a living AI news-meme frame.
+Magic Wall turns a Raspberry Pi touchscreen into a playful X Pulse display.
 
-Six times per day, it asks OpenAI web search for a real current news story, turns that story into a maximalist AI-slop meme poster with GPT Image, and displays only the generated artwork fullscreen. Tap the screen to reveal the story source, timestamp, settings, and regenerate button.
+It keeps the living AI news-art layer, then adds hourly xAI-powered checks for what people are talking about on X. The result is still fun from across the room, but useful when you walk up and touch it.
 
 It is built for a Raspberry Pi with a 7-inch touchscreen, but it also runs on any machine with Python 3.11+ and a browser.
 
 ## What It Does
 
-- Uses only the OpenAI API at runtime.
-- Prefers news from the last hour.
+- Uses OpenAI for image generation and optional xAI for X Pulse signal checks.
+- Builds a free public-source mesh for art story discovery before using paid web search.
+- Uses xAI/Grok API access for real X Search when configured.
+- Falls back to free public feeds when xAI is not configured.
+- Checks X Pulse signals every hour by default.
+- Keeps image generation separate from low-cost signal checks.
+- Prefers news from the last hour for the ambient art story.
 - If the last-hour window is thin, uses the biggest verifiable story of the day instead.
 - Generates an intentionally outrageous AI-slop news meme poster.
-- Keeps the visible display clean: just the artwork until the screen is tapped.
+- Shows a touch-first X Pulse overlay over the artwork.
+- Uses direct X topic links instead of an embedded X webview.
 - Allows one short readable meme caption inside the image.
 - Uses public-figure caricatures only when they are central to the story.
 - Runs locally on the device with a user-provided OpenAI API key.
@@ -22,13 +28,22 @@ It is built for a Raspberry Pi with a 7-inch touchscreen, but it also runs on an
 
 Each generation follows this rough flow:
 
-1. Search current news with OpenAI web search.
-2. Select one real, sourced story.
-3. Compress the story into a short meme-label title.
-4. Generate a chaotic landscape artwork with the story as the visual anchor.
-5. Atomically replace the current image on the local kiosk page.
+1. Collect current story candidates from public feeds such as Google News RSS and Hacker News.
+2. Dedupe, cluster, and score candidates locally for freshness, source quality, traction, novelty, and visual potential.
+3. Ask the configured OpenAI text model to choose from the finalist list without web search.
+4. Fall back to OpenAI web search only when the public source mesh has no usable story.
+5. Compress the chosen story into a short meme-label title.
+6. Generate a chaotic landscape artwork with the story as the visual anchor.
+7. Atomically replace the current image on the local kiosk page.
 
 The output style is intentionally absurd: glossy, overcrowded, cinematic, neon, meme-readable, and funny on inspection.
+
+X Pulse checks follow a separate flow:
+
+1. If xAI is configured, use Grok with X Search to find current conversation signals.
+2. If xAI is not configured, use free public feeds such as Google News RSS and Hacker News.
+3. Store compact X Pulse cards for the local overlay.
+4. Refresh the touchscreen without changing the current artwork.
 
 ## Install On Raspberry Pi
 
@@ -87,9 +102,18 @@ image_quality = "low"
 image_size = "1344x800"
 output_format = "jpeg"
 
+[xai]
+api_key = ""
+model = "grok-4"
+
 [refresh]
 minutes = 240
 news_window_minutes = 60
+
+[dashboard]
+refresh_minutes = 60
+categories = ["science", "technology", "pop culture", "world"]
+x_view_url = "https://x.com/explore/tabs/trending"
 
 [server]
 host = "127.0.0.1"
@@ -103,6 +127,7 @@ timezone = "local"
 magic-wall init
 magic-wall run
 magic-wall generate-now
+magic-wall check-now
 magic-wall status
 ```
 
@@ -129,9 +154,10 @@ http://127.0.0.1:8765
 
 ## Privacy And Safety
 
-- No external news API is used.
-- Runtime network calls go to OpenAI only.
+- Art story discovery uses public feeds first, then OpenAI web search only as a fallback.
+- X Pulse calls use xAI only when configured; otherwise they use public feeds.
 - The OpenAI key is stored locally in `~/.config/magic-wall/config.toml`.
+- The xAI key can be stored in config or supplied as `XAI_API_KEY` / `GROK_API_KEY`.
 - Generated images and state are stored locally in `~/.local/share/magic-wall/`.
 - Local runtime folders, generated images, logs, virtual environments, caches, and archives are ignored by git.
 - Do not commit `config.toml`, `.env`, generated images, or runtime logs.
@@ -144,7 +170,16 @@ rg -n --hidden "sk-|OPENAI_API_KEY|api_key|password|secret|token" .
 
 ## Cost Notes
 
-The default image quality is `low` because the display is small and the default cadence is only six generations per day. You can switch to `medium` or `high` in the config when you want richer images.
+The default image quality is `low` because the display is small and the default cadence is only six generations per day. Hourly X Pulse checks do not generate images. Art generation uses the source mesh before paid web search, so normal hourly art mode should mostly pay for image generation plus a small text-model finalist selection rather than a web-search tool call every hour. xAI search tools may bill per tool invocation, so the app falls back to free feeds when no xAI key is configured.
+
+## Project Docs
+
+- [ARCHITECTURE.md](ARCHITECTURE.md)
+- [WORKFLOW.md](WORKFLOW.md)
+- [docs/PRODUCT.md](docs/PRODUCT.md)
+- [docs/DESIGN.md](docs/DESIGN.md)
+- [docs/TESTING.md](docs/TESTING.md)
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 
 ## License
 

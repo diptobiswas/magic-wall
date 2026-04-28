@@ -87,6 +87,84 @@ def build_news_search_prompt(
     )
 
 
+def build_story_selection_prompt(
+    *,
+    now: datetime,
+    window_minutes: int,
+    candidates: list[dict[str, Any]],
+    previous_stories: list[dict[str, Any]] | None = None,
+) -> str:
+    now_utc = now.astimezone(timezone.utc)
+    since = now_utc - timedelta(minutes=window_minutes)
+    previous_note = ""
+    if previous_stories:
+        previous_json = json.dumps(previous_stories[:12], ensure_ascii=True)
+        previous_note = (
+            "Avoid repeating these recently used story titles or URLs unless the candidate is clearly "
+            f"the strongest current update: {previous_json}. "
+        )
+    candidates_json = json.dumps(candidates[:12], ensure_ascii=True)
+    return (
+        "Choose the single best story candidate for Magic Wall, a Raspberry Pi screen that turns "
+        "current news into an absurd, high-impact AI meme poster. "
+        "Quality is more important than pure recency, but prefer candidates published or updated "
+        f"after {since.isoformat()} when they are genuinely interesting. "
+        "Use only the provided candidates. Do not use web search, do not invent facts, and do not "
+        "combine different stories. Prefer stories with public significance, visual symbolism, "
+        "multiple evidence signals, strong source quality, and an instantly readable image concept. "
+        "Avoid routine commodity headlines, generic SEO posts, and stories that would make dull art. "
+        f"The current UTC time is {now_utc.isoformat()}. {previous_note}"
+        f"Candidates: {candidates_json}. "
+        "Return only compact JSON with these keys: "
+        "found, candidate_id, title, summary, source_name, source_url, published_at, significance, "
+        "selection_reason. "
+        "Set found=false only if every candidate is unusable. "
+        "The title must be a short punchy meme label, 2 to 8 words and at most 56 characters. "
+        "The summary must be faithful to the selected candidate and must not add unsupported facts."
+    )
+
+
+def build_dashboard_signal_prompt(
+    *,
+    now: datetime,
+    categories: tuple[str, ...],
+    previous_items: list[dict[str, Any]] | None = None,
+) -> str:
+    now_utc = now.astimezone(timezone.utc)
+    since = now_utc - timedelta(minutes=60)
+    category_text = ", ".join(categories)
+    previous_note = ""
+    if previous_items:
+        previous_json = json.dumps(previous_items[:16], ensure_ascii=True)
+        previous_note = (
+            "Avoid repeating these recently surfaced X Pulse items unless the same topic is still "
+            f"clearly escalating: {previous_json}. "
+        )
+    return (
+        "Build a concise X Pulse for a 7-inch Raspberry Pi touchscreen. "
+        "Use only X Search results. Do not use or summarize general web/news feeds. "
+        "Find the real topics people are actively talking about on X right now, with a bias toward "
+        f"these interests when they are genuinely moving: {category_text}. "
+        f"Prefer posts and threads from after {since.isoformat()}, but use the strongest current X "
+        "conversation from today if the last hour is thin. "
+        "Do not invent trends, counts, handles, sources, URLs, quotes, or engagement metrics. "
+        "If an exact post URL is unavailable, use a live X search URL for the topic. "
+        "Favor science, technology, AI, internet culture, music, film, games, and other pop culture "
+        "over routine politics unless the conversation is unavoidable. "
+        f"The current UTC time is {now_utc.isoformat()}. {previous_note}"
+        "Return only compact JSON with this exact shape: "
+        '{"status":"ready","message":"one sentence X overview","items":[{"category":"x pulse",'
+        '"title":"short X topic label","summary":"what people are saying on X","source_name":"X handle or X",'
+        '"source_url":"https://x.com/... or live search URL","found_at":"ISO time if known",'
+        '"heat":"watch|rising|hot","metric":"verifiable X signal, otherwise qualitative",'
+        '"why_it_matters":"why this is worth noticing","tags":["short","tags"]}],'
+        '"x_topics":[{"name":"topic people are discussing",'
+        '"url":"https://x.com/search?q=...&f=live","metric":"why it is moving"}]}. '
+        "Return 5 to 8 X Pulse items and 4 to 6 X topics. "
+        "Keep every title under 78 characters and every summary under 220 characters."
+    )
+
+
 def build_image_prompt(*, story: NewsStory, style: str, size: str) -> str:
     common = (
         f"Create a landscape artwork for a small 7-inch Raspberry Pi touchscreen at {size}. "

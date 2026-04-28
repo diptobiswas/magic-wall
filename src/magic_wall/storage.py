@@ -8,7 +8,7 @@ import os
 import tempfile
 
 from .config import AppConfig
-from .models import NewsStory, parse_datetime
+from .models import DashboardSignal, NewsStory, parse_datetime
 
 
 class WallStorage:
@@ -63,6 +63,51 @@ class WallStorage:
         state["message"] = error
         self.write_state(state)
 
+    def mark_dashboard_checking(self, *, message: str = "Checking fresh signals.") -> None:
+        signal = self.dashboard_signal()
+        state = self.read_state()
+        dashboard = signal.to_dict()
+        dashboard["status"] = "checking"
+        dashboard["message"] = message
+        state["dashboard"] = dashboard
+        self.write_state(state)
+
+    def mark_dashboard_error(self, error: str, *, checked_at: str | None = None, next_check_at: str | None = None) -> None:
+        state = self.read_state()
+        signal = DashboardSignal.error(
+            categories=self.config.dashboard_categories,
+            message=error,
+            checked_at=checked_at,
+            next_check_at=next_check_at,
+            provider="dashboard",
+        )
+        state["dashboard"] = signal.to_dict()
+        self.write_state(state)
+
+    def write_dashboard_signal(self, signal: DashboardSignal) -> None:
+        state = self.read_state()
+        state["dashboard"] = signal.to_dict()
+        self.write_state(state)
+
+    def dashboard_signal(self) -> DashboardSignal:
+        state = self.read_state()
+        dashboard = state.get("dashboard")
+        if isinstance(dashboard, dict):
+            return DashboardSignal.from_dict(dashboard, categories=self.config.dashboard_categories)
+        return DashboardSignal.empty(categories=self.config.dashboard_categories)
+
+    def recent_dashboard_items(self) -> list[dict[str, Any]]:
+        signal = self.dashboard_signal()
+        return [
+            {
+                "category": item.category,
+                "title": item.title,
+                "source_url": item.source_url,
+                "found_at": item.found_at,
+            }
+            for item in signal.items[:16]
+        ]
+
     def generation_count(self) -> int:
         state = self.read_state()
         count = state.get("generation_count")
@@ -99,17 +144,28 @@ class WallStorage:
         state["config"] = {
             "refresh_minutes": self.config.refresh_minutes,
             "news_window_minutes": self.config.news_window_minutes,
+            "dashboard_refresh_minutes": self.config.dashboard_refresh_minutes,
+            "dashboard_categories": list(self.config.dashboard_categories),
             "image_model": self.config.image_model,
             "image_quality": self.config.image_quality,
             "image_size": self.config.image_size,
             "text_model": self.config.text_model,
+            "xai_model": self.config.xai_model,
+            "xai_configured": bool(self.config.xai_api_key),
+            "x_view_url": self.config.x_view_url,
         }
+        if "dashboard" not in state:
+            state["dashboard"] = DashboardSignal.empty(categories=self.config.dashboard_categories).to_dict()
         return state
 
     def next_refresh_from_state(self) -> datetime | None:
         state = self.read_state()
         self._apply_current_refresh_schedule(state)
         return parse_datetime(state.get("next_refresh_at"))
+
+    def next_dashboard_check_from_state(self) -> datetime | None:
+        signal = self.dashboard_signal()
+        return parse_datetime(signal.next_check_at)
 
     @staticmethod
     def empty_state(*, status: str = "empty", message: str = "No artwork generated yet.") -> dict[str, Any]:

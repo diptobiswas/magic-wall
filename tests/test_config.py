@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from magic_wall.config import ConfigError, load_config, write_default_config
+from magic_wall.config import ConfigError, load_config, parse_dashboard_categories, write_default_config
 
 
 def test_loads_default_config_from_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -21,6 +21,8 @@ def test_loads_default_config_from_environment(tmp_path: Path, monkeypatch: pyte
     assert cfg.image_quality == "low"
     assert cfg.refresh_minutes == 240
     assert cfg.news_window_minutes == 60
+    assert cfg.dashboard_refresh_minutes == 60
+    assert cfg.dashboard_categories == ("science", "technology", "pop culture", "world")
 
 
 def test_require_api_key_rejects_missing_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -55,5 +57,25 @@ def test_write_default_config_is_private(tmp_path: Path) -> None:
     path = write_default_config(tmp_path / "config.toml", api_key="sk-written")
 
     assert 'api_key = "sk-written"' in path.read_text(encoding="utf-8")
+    assert "[dashboard]" in path.read_text(encoding="utf-8")
     if os.name == "posix":
         assert oct(path.stat().st_mode & 0o777) == "0o600"
+
+
+def test_loads_xai_key_from_grok_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("GROK_API_KEY", "xai-test")
+
+    cfg = load_config(tmp_path / "missing.toml")
+
+    assert cfg.xai_api_key == "xai-test"
+    assert cfg.xai_model == "grok-4"
+
+
+def test_parse_dashboard_categories_accepts_list_or_comma_string() -> None:
+    assert parse_dashboard_categories(["Science", "pop_culture", "Science"]) == (
+        "science",
+        "pop culture",
+    )
+    assert parse_dashboard_categories("science, technology") == ("science", "technology")

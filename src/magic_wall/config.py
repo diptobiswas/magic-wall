@@ -14,6 +14,9 @@ QUALITY_VALUES = {"low", "medium", "high", "auto"}
 OUTPUT_FORMAT_VALUES = {"jpeg", "png", "webp"}
 DEFAULT_REFRESH_MINUTES = 240
 DEFAULT_NEWS_WINDOW_MINUTES = 60
+DEFAULT_DASHBOARD_REFRESH_MINUTES = 60
+DEFAULT_DASHBOARD_CATEGORIES = ("science", "technology", "pop culture", "world")
+DEFAULT_X_VIEW_URL = "https://x.com/explore/tabs/trending"
 
 
 class ConfigError(ValueError):
@@ -37,13 +40,18 @@ class AppConfig:
     config_path: Path
     data_dir: Path
     openai_api_key: str | None = None
+    xai_api_key: str | None = None
     text_model: str = "gpt-5.4-mini"
     image_model: str = "gpt-image-2"
+    xai_model: str = "grok-4"
     image_quality: str = "low"
     image_size: str = "1344x800"
     output_format: str = "jpeg"
     refresh_minutes: int = DEFAULT_REFRESH_MINUTES
     news_window_minutes: int = DEFAULT_NEWS_WINDOW_MINUTES
+    dashboard_refresh_minutes: int = DEFAULT_DASHBOARD_REFRESH_MINUTES
+    dashboard_categories: tuple[str, ...] = DEFAULT_DASHBOARD_CATEGORIES
+    x_view_url: str = DEFAULT_X_VIEW_URL
     host: str = "127.0.0.1"
     port: int = 8765
     timezone: str = "local"
@@ -51,6 +59,10 @@ class AppConfig:
     @property
     def refresh_seconds(self) -> int:
         return self.refresh_minutes * 60
+
+    @property
+    def dashboard_refresh_seconds(self) -> int:
+        return self.dashboard_refresh_minutes * 60
 
     @property
     def image_suffix(self) -> str:
@@ -72,12 +84,19 @@ class AppConfig:
             )
         return key
 
+    def require_xai_api_key(self) -> str:
+        key = (self.xai_api_key or "").strip()
+        if not key:
+            raise ConfigError("xAI API key is missing. Set XAI_API_KEY, GROK_API_KEY, or [xai].api_key.")
+        return key
+
 
 def default_config() -> AppConfig:
     return AppConfig(
         config_path=default_config_path(),
         data_dir=default_data_dir(),
         openai_api_key=discover_openai_api_key(),
+        xai_api_key=discover_xai_api_key(),
     )
 
 
@@ -91,7 +110,9 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         raw = tomllib.load(handle)
 
     openai = raw.get("openai", {})
+    xai = raw.get("xai", {})
     refresh = raw.get("refresh", {})
+    dashboard = raw.get("dashboard", {})
     server = raw.get("server", {})
     storage = raw.get("storage", {})
 
@@ -99,13 +120,20 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         config_path=config_path,
         data_dir=Path(storage.get("data_dir", default_data_dir())).expanduser(),
         openai_api_key=discover_openai_api_key() or _clean_optional(openai.get("api_key")),
+        xai_api_key=discover_xai_api_key() or _clean_optional(xai.get("api_key")),
         text_model=str(openai.get("text_model", base.text_model)),
         image_model=str(openai.get("image_model", base.image_model)),
+        xai_model=str(xai.get("model", base.xai_model)),
         image_quality=str(openai.get("image_quality", base.image_quality)),
         image_size=str(openai.get("image_size", base.image_size)),
         output_format=str(openai.get("output_format", base.output_format)),
         refresh_minutes=int(refresh.get("minutes", base.refresh_minutes)),
         news_window_minutes=int(refresh.get("news_window_minutes", base.news_window_minutes)),
+        dashboard_refresh_minutes=int(dashboard.get("refresh_minutes", base.dashboard_refresh_minutes)),
+        dashboard_categories=parse_dashboard_categories(
+            dashboard.get("categories", base.dashboard_categories)
+        ),
+        x_view_url=str(dashboard.get("x_view_url", base.x_view_url)),
         host=str(server.get("host", base.host)),
         port=int(server.get("port", base.port)),
         timezone=str(server.get("timezone", base.timezone)),
@@ -117,6 +145,10 @@ def load_config(path: str | Path | None = None) -> AppConfig:
 def validate_config(cfg: AppConfig) -> None:
     if cfg.refresh_minutes < 1:
         raise ConfigError("refresh.minutes must be at least 1.")
+    if cfg.dashboard_refresh_minutes < 1:
+        raise ConfigError("dashboard.refresh_minutes must be at least 1.")
+    if not cfg.dashboard_categories:
+        raise ConfigError("dashboard.categories must include at least one category.")
     if cfg.news_window_minutes != 60:
         raise ConfigError("refresh.news_window_minutes must stay at 60 for strict last-hour mode.")
     if cfg.image_quality not in QUALITY_VALUES:
@@ -131,6 +163,8 @@ def validate_config(cfg: AppConfig) -> None:
             raise ConfigError("openai.image_size dimensions must be multiples of 16.")
     if not (1 <= cfg.port <= 65535):
         raise ConfigError("server.port must be between 1 and 65535.")
+    if not cfg.x_view_url.startswith(("https://", "http://")):
+        raise ConfigError("dashboard.x_view_url must be an http or https URL.")
 
 
 def parse_image_size(value: str) -> tuple[int, int]:
@@ -172,9 +206,18 @@ def default_config_text(*, api_key: str | None = None) -> str:
         image_size = "1344x800"
         output_format = "jpeg"
 
+        [xai]
+        api_key = ""
+        model = "grok-4"
+
         [refresh]
         minutes = 240
         news_window_minutes = 60
+
+        [dashboard]
+        refresh_minutes = 60
+        categories = ["science", "technology", "pop culture", "world"]
+        x_view_url = "https://x.com/explore/tabs/trending"
 
         [server]
         host = "127.0.0.1"
@@ -182,6 +225,26 @@ def default_config_text(*, api_key: str | None = None) -> str:
         timezone = "local"
         """
     )
+
+
+def discover_xai_api_key() -> str | None:
+    return _clean_optional(os.environ.get("XAI_API_KEY")) or _clean_optional(os.environ.get("GROK_API_KEY"))
+
+
+def parse_dashboard_categories(value: object) -> tuple[str, ...]:
+    if isinstance(value, str):
+        raw = value.split(",")
+    elif isinstance(value, (list, tuple)):
+        raw = list(value)
+    else:
+        raw = list(DEFAULT_DASHBOARD_CATEGORIES)
+
+    categories: list[str] = []
+    for item in raw:
+        text = " ".join(str(item).strip().lower().replace("_", " ").split())
+        if text and text not in categories:
+            categories.append(text)
+    return tuple(categories)
 
 
 def _clean_optional(value: object) -> str | None:

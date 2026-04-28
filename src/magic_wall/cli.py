@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 
 from .config import ConfigError, load_config, write_default_config
+from .dashboard import DashboardUpdater
 from .generator import MagicWallGenerator
 from .key_discovery import discover_openai_api_key
 from .server import run_server
@@ -27,6 +28,7 @@ def main(argv: list[str] | None = None) -> int:
     run_parser.add_argument("--port", type=int, default=None, help="Port override.")
 
     subparsers.add_parser("generate-now", help="Generate a wallpaper immediately.")
+    subparsers.add_parser("check-now", help="Refresh X Pulse signals immediately.")
     subparsers.add_parser("status", help="Print current status.")
 
     args = parser.parse_args(argv)
@@ -43,6 +45,11 @@ def main(argv: list[str] | None = None) -> int:
             cfg.require_api_key()
             state = MagicWallGenerator(cfg).generate_once()
             print(json.dumps(_summary(state), indent=2))
+            return 0
+        if args.command == "check-now":
+            cfg = load_config(args.config)
+            dashboard = DashboardUpdater(cfg).refresh_once()
+            print(json.dumps(_dashboard_summary(dashboard), indent=2))
             return 0
         if args.command == "status":
             cfg = load_config(args.config)
@@ -74,4 +81,16 @@ def _summary(state: dict) -> dict:
         "story_title": story.get("title"),
         "story_found": story.get("found"),
         "image_url": state.get("image_url"),
+    }
+
+
+def _dashboard_summary(dashboard: dict) -> dict:
+    items = dashboard.get("items") if isinstance(dashboard.get("items"), list) else []
+    return {
+        "status": dashboard.get("status"),
+        "checked_at": dashboard.get("checked_at"),
+        "next_check_at": dashboard.get("next_check_at"),
+        "provider": dashboard.get("provider"),
+        "item_count": len(items),
+        "top_items": [item.get("title") for item in items[:5] if isinstance(item, dict)],
     }

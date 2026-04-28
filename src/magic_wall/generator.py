@@ -6,8 +6,8 @@ from typing import Protocol
 
 from .config import AppConfig
 from .models import NewsStory, utc_now
-from .openai_provider import OpenAIProvider
 from .prompts import build_image_prompt, choose_style, prompt_hash
+from .story_discovery import SourceMeshStoryProvider
 from .storage import WallStorage
 
 
@@ -35,7 +35,7 @@ class MagicWallGenerator:
         clock=utc_now,
     ):
         self.config = config
-        self.provider = provider or OpenAIProvider(config)
+        self.provider = provider or SourceMeshStoryProvider(config)
         self.storage = storage or WallStorage(config)
         self.clock = clock
 

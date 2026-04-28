@@ -7,29 +7,58 @@
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
-    <main id="stage" class="stage" aria-live="polite">
+    <main id="app" class="app-shell" aria-live="polite">
       <img id="wallpaper" class="wallpaper" alt="" />
       <div id="empty-art" class="empty-art" aria-hidden="true">
         <span></span>
         <span></span>
         <span></span>
       </div>
-      <section id="overlay" class="overlay" aria-label="Artwork details" aria-hidden="true">
-        <div class="meta">
-          <p id="status" class="status">Warming up</p>
-          <h1 id="title">Magic Wall</h1>
-          <p id="summary"></p>
-          <div class="details">
-            <span id="source"></span>
-            <span id="generated"></span>
-            <span id="next"></span>
-            <span id="style"></span>
+
+      <button id="touch-catcher" class="touch-catcher" type="button" aria-label="Show dashboard"></button>
+
+      <section id="dashboard" class="dashboard-sheet" aria-label="X Pulse" aria-hidden="true">
+        <header class="sheet-header">
+          <div>
+            <p id="status" class="status">X Pulse</p>
+            <h1>Live Signal</h1>
           </div>
+          <div class="time-stack">
+            <time id="clock">--:--</time>
+            <span id="provider">offline</span>
+          </div>
+          <button id="hide-dashboard" class="hide-button" type="button">Hide</button>
+        </header>
+
+        <div class="pulse-grid">
+          <article class="pulse-hero" aria-label="Top X signal">
+            <div class="panel-kicker">
+              <span id="lead-category">x pulse</span>
+              <span id="lead-heat">watch</span>
+            </div>
+            <h2 id="lead-title">Loading signals</h2>
+            <p id="lead-summary">Checking what people are talking about on X.</p>
+            <p id="lead-why"></p>
+            <div id="lead-tags" class="tag-row"></div>
+            <a id="lead-source" class="source-link" href="#" target="_blank" rel="noreferrer">Open on X</a>
+          </article>
+
+          <section class="pulse-list-panel" aria-label="X pulse list">
+            <div class="pulse-list-header">
+              <span>Now</span>
+              <span id="next-check"></span>
+            </div>
+            <div id="trend-list" class="trend-list"></div>
+          </section>
         </div>
-        <div class="actions">
-          <button id="refresh" type="button">Regenerate</button>
-          <button id="close" type="button">Hide</button>
-        </div>
+
+        <footer class="sheet-actions" aria-label="Actions">
+          <div class="pulse-strip">
+            <strong id="art-title">X Pulse</strong>
+            <span id="generated"></span>
+          </div>
+          <button id="check-now" type="button">Refresh</button>
+        </footer>
       </section>
     </main>
     <script src="/static/app.js" defer></script>
