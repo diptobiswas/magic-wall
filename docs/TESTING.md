@@ -13,15 +13,15 @@
 - Prompt construction and JSON extraction.
 - Source-mesh story ranking, no-web selection, and paid-search fallback behavior.
 - Art generation state writes.
-- Dashboard signal scheduling and storage.
-- Server endpoints for state, art refresh, and dashboard check.
+- Legacy dashboard state removal from API responses.
+- Server endpoints for state and art refresh.
 - Installer service rendering.
 
 ## Manual UI Check
 
 Boot the app, open `http://127.0.0.1:8765`, and verify:
 
-- Dashboard panels render without overlap.
-- Category tabs and cards are touchable.
-- `Check`, `Art`, `X`, and `Focus` buttons respond.
-- Empty, checking, and ready states are legible.
+- Story overlay renders without overlap.
+- Source link and metadata rows are legible.
+- `Hide` and `New art` buttons respond.
+- Empty, generating, ready, and error states are legible.

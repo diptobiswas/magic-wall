@@ -7,7 +7,7 @@
 ## Strong
 
 - Runs locally with no frontend build chain.
-- Art and dashboard work are separated.
+- The product is focused on one reliable loop: news story to wallpaper to story details.
 - Missing keys do not prevent boot.
 - Provider boundaries are testable.
 - Art story discovery uses cheap source-mesh ranking before paid web search.
@@ -16,8 +16,7 @@
 ## Weak
 
 - Public feed story quality is much better than one-shot search, but it still depends on RSS freshness and Google News availability.
-- Direct X links depend on the browser session if the user wants to inspect posts beyond the local pulse summary.
-- No persistent user preferences for category ordering yet.
+- No persistent user preferences for visual style cadence yet.
 - Optional clustered global sources such as paid GDELT Cloud are not wired in yet.
 - Physical 7-inch screen verification should still be repeated after kiosk restarts.
 

@@ -124,47 +124,6 @@ def build_story_selection_prompt(
     )
 
 
-def build_dashboard_signal_prompt(
-    *,
-    now: datetime,
-    categories: tuple[str, ...],
-    previous_items: list[dict[str, Any]] | None = None,
-) -> str:
-    now_utc = now.astimezone(timezone.utc)
-    since = now_utc - timedelta(minutes=60)
-    category_text = ", ".join(categories)
-    previous_note = ""
-    if previous_items:
-        previous_json = json.dumps(previous_items[:16], ensure_ascii=True)
-        previous_note = (
-            "Avoid repeating these recently surfaced X Pulse items unless the same topic is still "
-            f"clearly escalating: {previous_json}. "
-        )
-    return (
-        "Build a concise X Pulse for a 7-inch Raspberry Pi touchscreen. "
-        "Use only X Search results. Do not use or summarize general web/news feeds. "
-        "Find the real topics people are actively talking about on X right now, with a bias toward "
-        f"these interests when they are genuinely moving: {category_text}. "
-        f"Prefer posts and threads from after {since.isoformat()}, but use the strongest current X "
-        "conversation from today if the last hour is thin. "
-        "Do not invent trends, counts, handles, sources, URLs, quotes, or engagement metrics. "
-        "If an exact post URL is unavailable, use a live X search URL for the topic. "
-        "Favor science, technology, AI, internet culture, music, film, games, and other pop culture "
-        "over routine politics unless the conversation is unavoidable. "
-        f"The current UTC time is {now_utc.isoformat()}. {previous_note}"
-        "Return only compact JSON with this exact shape: "
-        '{"status":"ready","message":"one sentence X overview","items":[{"category":"x pulse",'
-        '"title":"short X topic label","summary":"what people are saying on X","source_name":"X handle or X",'
-        '"source_url":"https://x.com/... or live search URL","found_at":"ISO time if known",'
-        '"heat":"watch|rising|hot","metric":"verifiable X signal, otherwise qualitative",'
-        '"why_it_matters":"why this is worth noticing","tags":["short","tags"]}],'
-        '"x_topics":[{"name":"topic people are discussing",'
-        '"url":"https://x.com/search?q=...&f=live","metric":"why it is moving"}]}. '
-        "Return 5 to 8 X Pulse items and 4 to 6 X topics. "
-        "Keep every title under 78 characters and every summary under 220 characters."
-    )
-
-
 def build_image_prompt(*, story: NewsStory, style: str, size: str) -> str:
     common = (
         f"Create a landscape artwork for a small 7-inch Raspberry Pi touchscreen at {size}. "

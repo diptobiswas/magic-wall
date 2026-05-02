@@ -15,49 +15,49 @@
         <span></span>
       </div>
 
-      <button id="touch-catcher" class="touch-catcher" type="button" aria-label="Show dashboard"></button>
+      <button id="touch-catcher" class="touch-catcher" type="button" aria-label="Show story details"></button>
 
-      <section id="dashboard" class="dashboard-sheet" aria-label="X Pulse" aria-hidden="true">
+      <section id="story-sheet" class="story-sheet" aria-label="Wallpaper story" aria-hidden="true">
         <header class="sheet-header">
           <div>
-            <p id="status" class="status">X Pulse</p>
-            <h1>Live Signal</h1>
+            <p id="status" class="status">Wallpaper Story</p>
+            <h1>What It Is Based On</h1>
           </div>
           <div class="time-stack">
             <time id="clock">--:--</time>
-            <span id="provider">offline</span>
+            <span id="provider">local</span>
           </div>
-          <button id="hide-dashboard" class="hide-button" type="button">Hide</button>
+          <button id="hide-story" class="hide-button" type="button">Hide</button>
         </header>
 
-        <div class="pulse-grid">
-          <article class="pulse-hero" aria-label="Top X signal">
+        <div class="story-grid">
+          <article class="story-hero" aria-label="Selected news story">
             <div class="panel-kicker">
-              <span id="lead-category">x pulse</span>
-              <span id="lead-heat">watch</span>
+              <span id="lead-category">news anchor</span>
+              <span id="lead-heat">current art</span>
             </div>
-            <h2 id="lead-title">Loading signals</h2>
-            <p id="lead-summary">Checking what people are talking about on X.</p>
+            <h2 id="lead-title">Loading story</h2>
+            <p id="lead-summary">Waiting for the local service to load the current wallpaper context.</p>
             <p id="lead-why"></p>
             <div id="lead-tags" class="tag-row"></div>
-            <a id="lead-source" class="source-link" href="#" target="_blank" rel="noreferrer">Open on X</a>
+            <a id="lead-source" class="source-link" href="#" target="_blank" rel="noreferrer">Open source</a>
           </article>
 
-          <section class="pulse-list-panel" aria-label="X pulse list">
-            <div class="pulse-list-header">
-              <span>Now</span>
-              <span id="next-check"></span>
+          <section class="story-meta-panel" aria-label="Wallpaper metadata">
+            <div class="story-list-header">
+              <span>Artwork</span>
+              <span id="next-refresh"></span>
             </div>
-            <div id="trend-list" class="trend-list"></div>
+            <div id="story-list" class="story-list"></div>
           </section>
         </div>
 
         <footer class="sheet-actions" aria-label="Actions">
-          <div class="pulse-strip">
-            <strong id="art-title">X Pulse</strong>
+          <div class="story-strip">
+            <strong id="art-title">Magic Wall</strong>
             <span id="generated"></span>
           </div>
-          <button id="check-now" type="button">Refresh</button>
+          <button id="regenerate" type="button">New art</button>
         </footer>
       </section>
     </main>

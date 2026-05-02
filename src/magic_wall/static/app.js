@@ -1,11 +1,11 @@
 const app = document.getElementById("app");
-const dashboard = document.getElementById("dashboard");
+const storySheet = document.getElementById("story-sheet");
 const touchCatcher = document.getElementById("touch-catcher");
 const wallpaper = document.getElementById("wallpaper");
 const statusEl = document.getElementById("status");
 const providerEl = document.getElementById("provider");
 const clockEl = document.getElementById("clock");
-const trendListEl = document.getElementById("trend-list");
+const storyListEl = document.getElementById("story-list");
 const leadCategoryEl = document.getElementById("lead-category");
 const leadHeatEl = document.getElementById("lead-heat");
 const leadTitleEl = document.getElementById("lead-title");
@@ -15,14 +15,13 @@ const leadTagsEl = document.getElementById("lead-tags");
 const leadSourceEl = document.getElementById("lead-source");
 const artTitleEl = document.getElementById("art-title");
 const generatedEl = document.getElementById("generated");
-const nextCheckEl = document.getElementById("next-check");
-const checkNowButton = document.getElementById("check-now");
-const hideDashboardButton = document.getElementById("hide-dashboard");
+const nextRefreshEl = document.getElementById("next-refresh");
+const regenerateButton = document.getElementById("regenerate");
+const hideStoryButton = document.getElementById("hide-story");
 
 let currentImageUrl = "";
 let latestState = {};
-let selectedItemId = "";
-let dashboardOpen = false;
+let storyOpen = false;
 
 function formatTime(value) {
   if (!value) return "";
@@ -48,67 +47,46 @@ function updateClock() {
   clockEl.textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function setDashboard(open) {
-  dashboardOpen = open;
-  document.body.classList.toggle("dashboard-open", open);
-  dashboard.setAttribute("aria-hidden", open ? "false" : "true");
-  touchCatcher.setAttribute("aria-label", "Show X Pulse");
-}
-
-function dashboardData() {
-  return latestState.dashboard || {};
-}
-
-function pulseItems() {
-  const pulse = dashboardData();
-  const items = Array.isArray(pulse.items) ? pulse.items : [];
-  if (items.length) return items;
-  const topics = Array.isArray(pulse.x_topics) ? pulse.x_topics : [];
-  return topics.map((topic, index) => ({
-    id: `topic-${index}-${topic.name || "x"}`,
-    category: "x pulse",
-    title: topic.name || "X topic",
-    summary: topic.metric || "Live X topic.",
-    source_url: topic.url || xSearchUrl(topic.name || ""),
-    heat: "watch",
-    metric: topic.metric || "live",
-    tags: ["x"],
-  }));
-}
-
-function selectedItem() {
-  const items = pulseItems();
-  return items.find((item) => item.id === selectedItemId) || items[0] || null;
-}
-
-function xSearchUrl(query) {
-  return `https://x.com/search?q=${encodeURIComponent(query || "")}&src=typed_query&f=live`;
+function setStoryOpen(open) {
+  storyOpen = open;
+  document.body.classList.toggle("story-open", open);
+  storySheet.setAttribute("aria-hidden", open ? "false" : "true");
+  touchCatcher.setAttribute("aria-label", "Show story details");
 }
 
 function setBusy(button, busy, label) {
   button.disabled = busy;
-  button.textContent = busy ? "Checking" : label;
+  button.textContent = busy ? "Working" : label;
 }
 
-function providerLabel(pulse, config) {
-  if (pulse.provider === "xai") return "xAI search";
-  if (config.xai_configured) return "xAI ready";
-  return "xAI key needed";
+function storyData() {
+  return latestState.story || {};
+}
+
+function displayStatus(state, story) {
+  if (state.setup_required) return "Setup needed";
+  if (state.status === "generating") return "Making art";
+  if (state.status === "error") return "Needs attention";
+  if (story.found) return "Wallpaper Story";
+  return "Quiet hour";
+}
+
+function providerLabel(state) {
+  const config = state.config || {};
+  if (state.setup_required) return "no key";
+  return config.text_model || "local";
 }
 
 function updateState(state) {
   latestState = state;
-  const pulse = dashboardData();
-  const config = state.config || {};
-  const story = state.story || {};
+  const story = storyData();
 
-  const ready = pulse.status === "ready";
-  statusEl.textContent = ready ? "X Pulse live" : pulse.status || "X Pulse";
-  providerEl.textContent = providerLabel(pulse, config);
-
-  artTitleEl.textContent = pulse.message || "X Pulse";
-  generatedEl.textContent = pulse.checked_at ? `checked ${formatTime(pulse.checked_at)}` : "";
-  nextCheckEl.textContent = pulse.next_check_at ? `next ${formatTime(pulse.next_check_at)}` : "";
+  statusEl.textContent = displayStatus(state, story);
+  providerEl.textContent = providerLabel(state);
+  artTitleEl.textContent = story.title || "Magic Wall";
+  generatedEl.textContent = state.generated_at ? `made ${formatTime(state.generated_at)}` : "";
+  nextRefreshEl.textContent = state.next_refresh_at ? `next ${formatTime(state.next_refresh_at)}` : "";
+  app.classList.toggle("is-generating", state.status === "generating");
 
   if (state.image_url && state.image_url !== currentImageUrl) {
     currentImageUrl = state.image_url;
@@ -117,98 +95,70 @@ function updateState(state) {
     wallpaper.src = state.image_url;
   }
 
-  if (!state.image_url && story.title) {
-    artTitleEl.textContent = story.title;
-  }
-
-  renderPulseList();
   renderLead();
-}
-
-function renderPulseList() {
-  trendListEl.replaceChildren();
-  const pulse = dashboardData();
-  const items = pulseItems();
-  app.classList.toggle("is-checking", pulse.status === "checking");
-
-  if (pulse.status === "checking") {
-    for (let index = 0; index < 5; index += 1) {
-      const skeleton = document.createElement("div");
-      skeleton.className = "pulse-row skeleton";
-      trendListEl.append(skeleton);
-    }
-    return;
-  }
-
-  if (!items.length) {
-    const empty = document.createElement("div");
-    empty.className = "empty-state";
-    empty.textContent = pulse.message || "No X Pulse yet.";
-    trendListEl.append(empty);
-    return;
-  }
-
-  items.slice(0, 8).forEach((item, index) => {
-    const row = document.createElement("button");
-    row.type = "button";
-    row.className = item.id === selectedItemId ? "pulse-row is-selected" : "pulse-row";
-    row.style.setProperty("--index", String(index));
-    row.addEventListener("click", () => {
-      selectedItemId = item.id;
-      renderPulseList();
-      renderLead();
-    });
-
-    const marker = document.createElement("span");
-    marker.className = `pulse-dot heat-${item.heat || "watch"}`;
-
-    const body = document.createElement("span");
-    body.className = "pulse-row-body";
-    const title = document.createElement("strong");
-    title.textContent = item.title || "Untitled X topic";
-    const meta = document.createElement("span");
-    meta.textContent = item.metric || item.source_name || item.category || "X";
-    body.append(title, meta);
-
-    row.append(marker, body);
-    trendListEl.append(row);
-  });
+  renderStoryList();
 }
 
 function renderLead() {
-  const item = selectedItem();
-  if (!item) {
-    leadCategoryEl.textContent = "x pulse";
-    leadHeatEl.textContent = "empty";
-    leadTitleEl.textContent = "No X Pulse yet";
-    leadSummaryEl.textContent = (latestState.dashboard || {}).message || "Waiting for the next check.";
-    leadWhyEl.textContent = "";
-    leadTagsEl.replaceChildren();
-    leadSourceEl.hidden = true;
-    return;
-  }
+  const state = latestState;
+  const story = storyData();
+  const title = story.title || "No wallpaper story yet";
+  const summary = story.summary || state.message || "Generate the first wallpaper to fill this in.";
 
-  selectedItemId = item.id;
-  leadCategoryEl.textContent = "x pulse";
-  leadHeatEl.textContent = item.heat || "watch";
-  leadTitleEl.textContent = item.title || "Untitled X topic";
-  leadSummaryEl.textContent = item.summary || "";
-  leadWhyEl.textContent = item.why_it_matters || "";
-  leadSourceEl.hidden = false;
-  leadSourceEl.href = item.source_url || xSearchUrl(item.title);
+  leadCategoryEl.textContent = story.source_name || "news anchor";
+  leadHeatEl.textContent = story.found ? "used for image" : state.status || "waiting";
+  leadTitleEl.textContent = title;
+  leadSummaryEl.textContent = summary;
+  leadWhyEl.textContent = story.significance || story.selection_reason || "";
+
+  leadSourceEl.hidden = !story.source_url;
+  if (story.source_url) {
+    leadSourceEl.href = story.source_url;
+  }
 
   leadTagsEl.replaceChildren();
-  const tags = Array.isArray(item.tags) ? item.tags : [];
-  tags.slice(0, 4).forEach((tag) => {
-    const pill = document.createElement("span");
-    pill.textContent = tag;
-    leadTagsEl.append(pill);
+  [
+    story.published_at ? `published ${formatDateTime(story.published_at)}` : "",
+    state.generated_at ? `made ${formatDateTime(state.generated_at)}` : "",
+    story.source_name || "",
+  ]
+    .filter(Boolean)
+    .slice(0, 4)
+    .forEach((label) => {
+      const pill = document.createElement("span");
+      pill.textContent = label;
+      leadTagsEl.append(pill);
+    });
+}
+
+function renderStoryList() {
+  const state = latestState;
+  const story = storyData();
+  const config = state.config || {};
+  storyListEl.replaceChildren();
+
+  const rows = [
+    ["Source", story.source_name || "Not selected yet"],
+    ["Published", formatDateTime(story.published_at) || "Unknown"],
+    ["Generated", formatDateTime(state.generated_at) || "Not generated yet"],
+    ["Next art", formatDateTime(state.next_refresh_at) || "Waiting"],
+    ["Cadence", config.refresh_minutes ? `${config.refresh_minutes} min` : "Default"],
+    ["Style", state.style || "Rotating AI-slop poster"],
+  ];
+
+  rows.forEach(([label, value], index) => {
+    const row = document.createElement("div");
+    row.className = "story-row";
+    row.style.setProperty("--index", String(index));
+
+    const name = document.createElement("span");
+    name.textContent = label;
+    const detail = document.createElement("strong");
+    detail.textContent = value;
+
+    row.append(name, detail);
+    storyListEl.append(row);
   });
-  if (item.found_at) {
-    const pill = document.createElement("span");
-    pill.textContent = formatDateTime(item.found_at);
-    leadTagsEl.append(pill);
-  }
 }
 
 async function loadState() {
@@ -217,39 +167,39 @@ async function loadState() {
   updateState(await response.json());
 }
 
-async function postCheckNow() {
-  setBusy(checkNowButton, true, "Refresh");
+async function postRegenerate() {
+  setBusy(regenerateButton, true, "New art");
   try {
-    const response = await fetch("/api/check-now", { method: "POST" });
+    const response = await fetch("/api/regenerate", { method: "POST" });
     if (!response.ok) throw new Error("Request failed");
     await loadState();
   } catch (error) {
     statusEl.textContent = "Error";
-    leadTitleEl.textContent = "X Pulse failed";
+    leadTitleEl.textContent = "Could not start new art";
     leadSummaryEl.textContent = error.message;
   } finally {
-    setBusy(checkNowButton, false, "Refresh");
+    setBusy(regenerateButton, false, "New art");
   }
 }
 
-checkNowButton.addEventListener("click", postCheckNow);
+regenerateButton.addEventListener("click", postRegenerate);
 document.addEventListener(
   "click",
   (event) => {
-    if (event.target.closest("#hide-dashboard")) {
+    if (event.target.closest("#hide-story")) {
       event.preventDefault();
       event.stopPropagation();
-      setDashboard(false);
+      setStoryOpen(false);
     }
   },
   true,
 );
-hideDashboardButton.addEventListener("pointerup", () => setDashboard(false));
-hideDashboardButton.addEventListener("click", () => setDashboard(false));
+hideStoryButton.addEventListener("pointerup", () => setStoryOpen(false));
+hideStoryButton.addEventListener("click", () => setStoryOpen(false));
 touchCatcher.addEventListener("click", () => {
-  if (!dashboardOpen) setDashboard(true);
+  if (!storyOpen) setStoryOpen(true);
 });
-dashboard.addEventListener("click", (event) => event.stopPropagation());
+storySheet.addEventListener("click", (event) => event.stopPropagation());
 
 updateClock();
 setInterval(updateClock, 1000);

@@ -134,7 +134,7 @@ button {
   cursor: pointer;
 }
 
-.dashboard-sheet {
+.story-sheet {
   position: absolute;
   inset: clamp(8px, 2vw, 14px);
   z-index: 2;
@@ -157,7 +157,7 @@ button {
     transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-body.dashboard-open .dashboard-sheet {
+body.story-open .story-sheet {
   opacity: 1;
   pointer-events: auto;
   transform: translate3d(0, 0, 0);
@@ -244,21 +244,21 @@ h2 {
   padding: 0 12px;
 }
 
-.pulse-grid {
+.story-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(240px, 0.84fr);
   gap: clamp(8px, 1.4vw, 12px);
   min-height: 0;
 }
 
-.pulse-hero,
-.pulse-list-panel {
+.story-hero,
+.story-meta-panel {
   min-height: 0;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.045);
 }
 
-.pulse-hero {
+.story-hero {
   display: grid;
   align-content: start;
   gap: clamp(9px, 1.7vw, 14px);
@@ -338,13 +338,13 @@ h2 {
   display: none;
 }
 
-.pulse-list-panel {
+.story-meta-panel {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   padding: 10px;
 }
 
-.pulse-list-header {
+.story-list-header {
   display: flex;
   justify-content: space-between;
   gap: 10px;
@@ -361,7 +361,7 @@ h2 {
   border-color: transparent;
 }
 
-.trend-list {
+.story-list {
   display: grid;
   align-content: start;
   gap: 7px;
@@ -370,17 +370,16 @@ h2 {
   padding-right: 2px;
 }
 
-.pulse-row {
+.story-row {
   display: grid;
-  grid-template-columns: 14px minmax(0, 1fr);
-  gap: 9px;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  align-items: start;
   width: 100%;
-  min-height: 66px;
-  padding: 9px 10px;
+  min-height: 58px;
+  padding: 10px 11px;
   color: var(--ink);
   text-align: left;
-  cursor: pointer;
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid var(--line);
   opacity: 0;
@@ -389,51 +388,20 @@ h2 {
   animation-delay: calc(var(--index) * 35ms);
 }
 
-.pulse-row.is-selected {
-  border-color: rgba(215, 255, 104, 0.72);
-  background: rgba(215, 255, 104, 0.12);
-}
-
-.pulse-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 999px;
-  background: var(--accent);
-  box-shadow: 0 0 0 4px rgba(215, 255, 104, 0.08);
-}
-
-.pulse-row-body {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-}
-
-.pulse-row strong {
+.story-row strong {
   display: -webkit-box;
   overflow: hidden;
   font-size: clamp(0.82rem, 1.8vw, 0.96rem);
-  line-height: 1.05;
+  line-height: 1.12;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
 
-.pulse-row-body > span {
+.story-row > span {
   color: var(--faint);
   font-size: 0.66rem;
   text-transform: uppercase;
-}
-
-.heat {
-  color: var(--accent);
-}
-
-.heat-hot {
-  color: var(--coral);
-}
-
-.heat-rising {
-  color: var(--blue);
 }
 
 .sheet-actions {
@@ -449,7 +417,7 @@ h2 {
   font-weight: 900;
 }
 
-.pulse-strip {
+.story-strip {
   display: flex;
   gap: 8px;
   align-items: center;
@@ -460,7 +428,7 @@ h2 {
   white-space: nowrap;
 }
 
-.pulse-strip strong {
+.story-strip strong {
   min-width: 0;
   overflow: hidden;
   color: var(--muted);
@@ -470,7 +438,7 @@ h2 {
   text-overflow: ellipsis;
 }
 
-.pulse-strip span:empty {
+.story-strip span:empty {
   display: none;
 }
 
@@ -537,11 +505,11 @@ button:disabled {
 }
 
 @media (max-width: 720px) {
-  .dashboard-sheet {
+  .story-sheet {
     overflow-y: auto;
   }
 
-  .pulse-grid {
+  .story-grid {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(220px, 1fr);
   }

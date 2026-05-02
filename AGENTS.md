@@ -1,11 +1,11 @@
 # Magic Wall
 
-Raspberry Pi touchscreen appliance that blends ambient AI news-art with an hourly life-dashboard signal.
+Raspberry Pi touchscreen appliance that turns current news into ambient AI wallpaper with touch-accessible story context.
 
 ## Repo Map
 
 - `src/magic_wall/`: Python package, FastAPI server, providers, storage, static kiosk UI.
-- `src/magic_wall/static/`: touch dashboard HTML, CSS, and JavaScript.
+- `src/magic_wall/static/`: touch story-overlay HTML, CSS, and JavaScript.
 - `tests/`: unit and API regression tests.
 - `docs/`: product, architecture, deployment, testing, and execution plans.
 - `install.sh`: Raspberry Pi install entrypoint.
@@ -15,14 +15,13 @@ Raspberry Pi touchscreen appliance that blends ambient AI news-art with an hourl
 - Install: `.venv/bin/python -m pip install -e ".[dev]"`
 - Run: `.venv/bin/magic-wall run`
 - Generate art: `.venv/bin/magic-wall generate-now`
-- Check dashboard: `.venv/bin/magic-wall check-now`
 - Test: `.venv/bin/python -m pytest`
 - Compile: `.venv/bin/python -m compileall -q src tests`
 
 ## Boundaries
 
 - UI renders state only; business logic stays in providers, generator, storage, and server modules.
-- OpenAI image/news-art generation and xAI dashboard search are separate provider boundaries.
+- OpenAI image/news-art generation stays behind provider boundaries.
 - Runtime config and generated files must stay outside git.
 
 ## Verification
@@ -38,8 +37,7 @@ Start with `README.md`, `ARCHITECTURE.md`, `WORKFLOW.md`, and `docs/PRODUCT.md`.
 ## Do Not
 
 - Do not commit API keys, `config.toml`, generated images, logs, or runtime data.
-- Do not make hourly dashboard checks depend on image generation.
-- Do not make X required for the app to boot.
+- Do not reintroduce X/xAI trend checks unless explicitly requested.
 
 ## Documentation Updates
 

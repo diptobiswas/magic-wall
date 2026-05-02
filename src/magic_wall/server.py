@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from importlib.resources import files
 from pathlib import Path
 
@@ -11,7 +11,6 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import AppConfig, ConfigError
-from .dashboard import DashboardUpdater
 from .generator import MagicWallGenerator
 from .storage import WallStorage
 
@@ -27,28 +26,19 @@ def create_app(
     config: AppConfig,
     *,
     generator: MagicWallGenerator | None = None,
-    dashboard_updater: DashboardUpdater | None = None,
     storage: WallStorage | None = None,
     start_scheduler: bool = True,
 ) -> FastAPI:
     storage = storage or WallStorage(config)
     runtime_generator = generator
-    runtime_dashboard_updater = dashboard_updater
     static_dir = Path(str(files("magic_wall").joinpath("static")))
     lock = asyncio.Lock()
-    dashboard_lock = asyncio.Lock()
 
     def get_generator() -> MagicWallGenerator:
         nonlocal runtime_generator
         if runtime_generator is None:
             runtime_generator = MagicWallGenerator(config, storage=storage)
         return runtime_generator
-
-    def get_dashboard_updater() -> DashboardUpdater:
-        nonlocal runtime_dashboard_updater
-        if runtime_dashboard_updater is None:
-            runtime_dashboard_updater = DashboardUpdater(config, storage=storage)
-        return runtime_dashboard_updater
 
     async def generate_locked() -> None:
         async with lock:
@@ -59,32 +49,11 @@ def create_app(
             except Exception as exc:  # pragma: no cover - defensive server boundary
                 storage.mark_error(f"Generation failed: {exc}")
 
-    async def refresh_dashboard_locked() -> None:
-        async with dashboard_lock:
-            checked_at = datetime.now(timezone.utc)
-            next_check_at = checked_at + timedelta(minutes=config.dashboard_refresh_minutes)
-            try:
-                await asyncio.to_thread(get_dashboard_updater().refresh_once)
-            except ConfigError as exc:
-                storage.mark_dashboard_error(
-                    str(exc),
-                    checked_at=checked_at.isoformat(),
-                    next_check_at=next_check_at.isoformat(),
-                )
-            except Exception as exc:  # pragma: no cover - defensive server boundary
-                storage.mark_dashboard_error(
-                    f"Dashboard check failed: {exc}",
-                    checked_at=checked_at.isoformat(),
-                    next_check_at=next_check_at.isoformat(),
-                )
-
     async def scheduler_loop() -> None:
         while True:
             if _generation_due(storage):
                 await generate_locked()
-            if _dashboard_due(storage):
-                await refresh_dashboard_locked()
-            await asyncio.sleep(min(30, max(1, config.dashboard_refresh_seconds, config.refresh_seconds)))
+            await asyncio.sleep(min(30, max(1, config.refresh_seconds)))
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -121,14 +90,6 @@ def create_app(
         state_payload = storage.state_for_api()
         state_payload["setup_required"] = not bool(config.openai_api_key)
         return state_payload
-
-    @app.post("/api/check-now")
-    async def check_now() -> dict:
-        if dashboard_lock.locked():
-            return {"status": "busy", "message": "A dashboard check is already running."}
-        asyncio.create_task(refresh_dashboard_locked())
-        storage.mark_dashboard_checking(message="Manual signal check started.")
-        return {"status": "queued", "message": "Manual signal check started."}
 
     @app.post("/api/regenerate")
     async def regenerate() -> dict:
@@ -172,13 +133,3 @@ def _generation_due(storage: WallStorage) -> bool:
     if next_refresh is None:
         return not storage.current_image_path.exists()
     return datetime.now(timezone.utc) >= next_refresh.astimezone(timezone.utc)
-
-
-def _dashboard_due(storage: WallStorage) -> bool:
-    signal = storage.dashboard_signal()
-    if signal.status in {"empty", "error"} and not signal.checked_at:
-        return True
-    next_check = storage.next_dashboard_check_from_state()
-    if next_check is None:
-        return True
-    return datetime.now(timezone.utc) >= next_check.astimezone(timezone.utc)

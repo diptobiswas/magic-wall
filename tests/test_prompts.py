@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 
 from magic_wall.models import NewsStory
 from magic_wall.prompts import (
-    build_dashboard_signal_prompt,
     build_image_prompt,
     build_news_search_prompt,
     build_story_selection_prompt,
@@ -72,24 +71,6 @@ def test_story_selection_prompt_uses_source_candidates_without_web_search() -> N
     assert "NASA announces AI space discovery" in prompt
     assert "Already used" in prompt
     assert "candidate_id" in prompt
-
-
-def test_dashboard_signal_prompt_requests_x_pulse_only() -> None:
-    now = datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc)
-
-    prompt = build_dashboard_signal_prompt(
-        now=now,
-        categories=("science", "technology", "pop culture"),
-        previous_items=[{"title": "Already surfaced"}],
-    )
-
-    assert "X Search" in prompt
-    assert "Do not use or summarize general web/news feeds" in prompt
-    assert "Web Search" not in prompt
-    assert "science, technology, pop culture" in prompt
-    assert "2026-04-28T11:00:00+00:00" in prompt
-    assert "Already surfaced" in prompt
-    assert '"x_topics"' in prompt
 
 
 def test_extract_json_object_handles_markdown_fence() -> None:
