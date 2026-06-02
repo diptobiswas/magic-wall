@@ -39,7 +39,7 @@ class AppConfig:
     openai_api_key: str | None = None
     text_model: str = "gpt-5.4-mini"
     image_model: str = "gpt-image-2"
-    image_quality: str = "low"
+    image_quality: str = "medium"
     image_size: str = "1344x800"
     output_format: str = "jpeg"
     refresh_minutes: int = DEFAULT_REFRESH_MINUTES
@@ -168,7 +168,7 @@ def default_config_text(*, api_key: str | None = None) -> str:
         api_key = "{safe_key}"
         text_model = "gpt-5.4-mini"
         image_model = "gpt-image-2"
-        image_quality = "low"
+        image_quality = "medium"
         image_size = "1344x800"
         output_format = "jpeg"
 

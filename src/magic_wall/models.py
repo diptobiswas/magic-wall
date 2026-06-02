@@ -119,17 +119,26 @@ def utc_now() -> datetime:
 def compact_title(value: str, *, max_chars: int = 64) -> str:
     text = " ".join(str(value or "").split())
     if len(text) <= max_chars:
-        return text
+        return _strip_title_tail(text)
     words = text.split()
     shortened = ""
     for word in words:
         candidate = f"{shortened} {word}".strip()
-        if len(candidate) > max_chars - 3:
+        if len(candidate) > max_chars:
             break
         shortened = candidate
     if not shortened:
-        shortened = text[: max_chars - 3].rstrip()
-    return f"{shortened.rstrip(' .,;:-')}..."
+        shortened = text[:max_chars].rstrip()
+    return _strip_title_tail(shortened)
+
+
+def _strip_title_tail(value: str) -> str:
+    text = value.rstrip(" .,;:-…")
+    trailing_soft_words = {"a", "an", "and", "as", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to", "with"}
+    words = text.split()
+    while len(words) > 1 and words[-1].lower().strip(".,;:-") in trailing_soft_words:
+        words.pop()
+    return " ".join(words).rstrip(" .,;:-…")
 
 
 def compact_summary(value: str, *, max_chars: int) -> str:

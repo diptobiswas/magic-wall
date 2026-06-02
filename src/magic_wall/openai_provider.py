@@ -5,7 +5,13 @@ from typing import Any
 
 from .config import AppConfig
 from .models import NewsStory
-from .prompts import build_news_search_prompt, build_story_selection_prompt, extract_json_object
+from .prompts import (
+    build_briefing_selection_prompt,
+    build_news_briefing_search_prompt,
+    build_news_search_prompt,
+    build_story_selection_prompt,
+    extract_json_object,
+)
 
 
 class OpenAIProvider:
@@ -34,6 +40,35 @@ class OpenAIProvider:
         data = extract_json_object(text)
         return NewsStory.from_dict(data)
 
+    def find_briefing(
+        self,
+        *,
+        now,
+        window_minutes: int,
+        previous_stories: list[dict] | None = None,
+    ) -> list[NewsStory]:
+        prompt = build_news_briefing_search_prompt(
+            now=now,
+            window_minutes=window_minutes,
+            previous_stories=previous_stories,
+        )
+        response = self.client.responses.create(
+            model=self.config.text_model,
+            tools=[{"type": "web_search"}],
+            input=prompt,
+            max_output_tokens=1600,
+        )
+        data = extract_json_object(_response_text(response))
+        raw_stories = data.get("stories")
+        if not isinstance(raw_stories, list):
+            return []
+        stories = [
+            NewsStory.from_dict(item)
+            for item in raw_stories
+            if isinstance(item, dict)
+        ]
+        return [story for story in stories if story.found and story.title.strip() and story.summary.strip()]
+
     def select_story_from_candidates(
         self,
         *,
@@ -56,6 +91,39 @@ class OpenAIProvider:
         data = extract_json_object(_response_text(response))
         data = _fill_candidate_source_fields(data, candidates)
         return NewsStory.from_dict(data)
+
+    def select_briefing_from_candidates(
+        self,
+        *,
+        now,
+        window_minutes: int,
+        candidates: list[dict[str, Any]],
+        previous_stories: list[dict] | None = None,
+    ) -> list[NewsStory]:
+        prompt = build_briefing_selection_prompt(
+            now=now,
+            window_minutes=window_minutes,
+            candidates=candidates,
+            previous_stories=previous_stories,
+        )
+        response = self.client.responses.create(
+            model=self.config.text_model,
+            input=prompt,
+            max_output_tokens=1600,
+        )
+        data = extract_json_object(_response_text(response))
+        raw_stories = data.get("stories")
+        if not isinstance(raw_stories, list):
+            return []
+        stories: list[NewsStory] = []
+        for item in raw_stories:
+            if not isinstance(item, dict):
+                continue
+            merged = _fill_candidate_source_fields(item, candidates)
+            story = NewsStory.from_dict(merged)
+            if story.found and story.title.strip() and story.summary.strip():
+                stories.append(story)
+        return stories
 
     def generate_wallpaper(self, *, prompt: str) -> bytes:
         result = self.client.images.generate(

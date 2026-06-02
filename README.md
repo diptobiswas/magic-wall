@@ -2,7 +2,7 @@
 
 Magic Wall turns a Raspberry Pi touchscreen into an ambient AI news-art frame.
 
-It finds a current news story, turns it into intentionally outrageous AI-slop wallpaper, and shows the story context when you walk up and touch the screen.
+It finds a small set of current news stories, turns them into a wild but readable World Machine infographic, and shows the story context when you walk up and touch the screen.
 
 It is built for a Raspberry Pi with a 7-inch touchscreen, but it also runs on any machine with Python 3.11+ and a browser.
 
@@ -10,11 +10,11 @@ It is built for a Raspberry Pi with a 7-inch touchscreen, but it also runs on an
 
 - Uses OpenAI for story selection fallback and image generation.
 - Builds a free public-source mesh for art story discovery before using paid web search.
-- Prefers news from the last hour for the ambient art story.
+- Prefers news from the last hour for the ambient briefing.
 - If the last-hour window is thin, uses the biggest verifiable story of the day instead.
-- Generates an intentionally outrageous AI-slop news meme poster.
-- Shows a touch-first story details overlay over the artwork.
-- Allows one short readable meme caption inside the image.
+- Generates a medium-quality multi-story World Machine Report infographic.
+- Shows a touch-first briefing overlay over the artwork.
+- Uses large labels, article sectors, chart-like signals, and timeline/legend structure inside the image.
 - Uses public-figure caricatures only when they are central to the story.
 - Runs locally on the device with a user-provided OpenAI API key.
 - Refreshes every 4 hours by default, for 6 generated images per day.
@@ -25,15 +25,15 @@ Each generation follows this rough flow:
 
 1. Collect current story candidates from public feeds such as Google News RSS and Hacker News.
 2. Dedupe, cluster, and score candidates locally for freshness, source quality, traction, novelty, and visual potential.
-3. Ask the configured OpenAI text model to choose from the finalist list without web search.
+3. Select a small briefing from the ranked source mesh without web search.
 4. Fall back to OpenAI web search only when the public source mesh has no usable story.
-5. Compress the chosen story into a short meme-label title.
-6. Generate a chaotic landscape artwork with the story as the visual anchor.
+5. Compress briefing titles for display and image labels.
+6. Generate a World Machine Report infographic with each story as a visual sector.
 7. Atomically replace the current image on the local kiosk page.
 
-The output style is intentionally absurd: glossy, overcrowded, cinematic, neon, meme-readable, and funny on inspection.
+The output style is intentionally intense: an exploded-view planet machine with readable story sectors, timeline orbit, legend, symbols, and consequence tags.
 
-On touch, the kiosk reveals only the information used for the current wallpaper: title, summary, source, published time, generation time, next refresh, and style.
+On touch, the kiosk reveals only the information used for the current wallpaper: primary story, briefing sectors, summaries, sources, published times, generation time, next refresh, and style.
 
 ## Install On Raspberry Pi
 
@@ -88,7 +88,7 @@ Default config:
 api_key = ""
 text_model = "gpt-5.4-mini"
 image_model = "gpt-image-2"
-image_quality = "low"
+image_quality = "medium"
 image_size = "1344x800"
 output_format = "jpeg"
 
@@ -154,7 +154,7 @@ rg -n --hidden "sk-|OPENAI_API_KEY|api_key|password|secret|token" .
 
 ## Cost Notes
 
-The default image quality is `low` because the display is small and the default cadence is only six generations per day. Art generation uses the source mesh before paid web search, so normal hourly art mode should mostly pay for image generation plus a small text-model finalist selection rather than a web-search tool call every hour.
+The default image quality is `medium` because the generated image now carries readable infographic structure. Art generation uses the source mesh before paid web search, so normal art mode should mostly pay for image generation plus source collection rather than a web-search tool call every cycle.
 
 ## Project Docs
 

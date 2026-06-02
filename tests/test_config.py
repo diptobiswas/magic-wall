@@ -18,7 +18,7 @@ def test_loads_default_config_from_environment(tmp_path: Path, monkeypatch: pyte
 
     assert cfg.openai_api_key == "sk-test_abcdefghijklmnopqrstuvwxyz"
     assert cfg.image_model == "gpt-image-2"
-    assert cfg.image_quality == "low"
+    assert cfg.image_quality == "medium"
     assert cfg.refresh_minutes == 240
     assert cfg.news_window_minutes == 60
 

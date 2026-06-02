@@ -80,10 +80,17 @@ class WallStorage:
             return [_story_memory(story)]
         return []
 
-    def updated_recent_stories(self, story: NewsStory) -> list[dict[str, Any]]:
+    def updated_recent_stories(
+        self,
+        story: NewsStory,
+        *,
+        extra_stories: list[NewsStory] | None = None,
+    ) -> list[dict[str, Any]]:
         recent = self.recent_stories()
-        if story.found:
-            current = _story_memory(story.to_dict())
+        for item in [story, *(extra_stories or [])]:
+            if not item.found:
+                continue
+            current = _story_memory(item.to_dict())
             recent = [item for item in recent if item != current]
             recent.insert(0, current)
         return recent[:12]
@@ -120,6 +127,7 @@ class WallStorage:
             "generated_at": None,
             "next_refresh_at": None,
             "story": None,
+            "briefing": [],
             "style": None,
             "image_url": None,
             "generation_count": 0,

@@ -62,8 +62,10 @@ def test_generation_uses_recent_story_and_writes_state(tmp_path: Path) -> None:
     assert state["status"] == "ready"
     assert state["story"]["found"] is True
     assert state["story"]["title"] == story.title
+    assert state["briefing"][0]["title"] == story.title
     assert storage.current_image_path.read_bytes() == b"fake-image"
     assert "Court blocks emergency order" in provider.prompts[0]
+    assert "WORLD MACHINE REPORT" in provider.prompts[0]
 
 
 def test_generation_compacts_long_news_title_for_display_and_image_text(tmp_path: Path) -> None:
@@ -87,7 +89,7 @@ def test_generation_compacts_long_news_title_for_display_and_image_text(tmp_path
 
     assert len(state["story"]["title"]) <= 64
     assert "\n" not in state["story"]["title"]
-    assert state["story"]["title"].endswith("...")
+    assert "..." not in state["story"]["title"]
     assert state["story"]["title"] in provider.prompts[0]
 
 
@@ -111,7 +113,7 @@ def test_generation_uses_current_information_even_outside_last_hour(tmp_path: Pa
     assert state["story"]["title"] == "Agency reports new public health totals"
     assert "biggest-news-of-day fallback outside the preferred last-hour window" in state["story"]["significance"]
     assert "Agency reports new public health totals" in provider.prompts[0]
-    assert "instantly identifiable as a meme" in provider.prompts[0]
+    assert "World Machine Report" in provider.prompts[0]
 
 
 def test_generation_retries_with_biggest_news_of_day_when_last_hour_has_no_story(tmp_path: Path) -> None:
@@ -218,3 +220,52 @@ def test_generation_passes_recent_stories_to_provider(tmp_path: Path) -> None:
             "published_at": "2026-04-24T11:10:00+00:00",
         }
     ]
+
+
+def test_generation_uses_provider_briefing_when_available(tmp_path: Path) -> None:
+    now = datetime(2026, 4, 24, 12, 0, tzinfo=timezone.utc)
+
+    class BriefingProvider(FakeProvider):
+        def find_briefing(
+            self,
+            *,
+            now: datetime,
+            window_minutes: int,
+            previous_stories: list[dict] | None = None,
+        ) -> list[NewsStory]:
+            del now
+            self.previous_stories = previous_stories
+            self.search_windows.append(window_minutes)
+            return self.stories
+
+    stories = [
+        NewsStory(
+            found=True,
+            title="Markets swing after chip warning",
+            summary="Chip stocks pulled the market lower after updated guidance.",
+            source_url="https://example.com/markets",
+            published_at="2026-04-24T11:20:00+00:00",
+        ),
+        NewsStory(
+            found=True,
+            title="Storm system closes airports",
+            summary="A severe storm disrupted travel across several hubs.",
+            source_url="https://example.com/weather",
+            published_at="2026-04-24T11:35:00+00:00",
+        ),
+    ]
+    provider = BriefingProvider(stories)
+
+    state = MagicWallGenerator(
+        make_config(tmp_path),
+        provider=provider,
+        clock=lambda: now,
+    ).generate_once()
+
+    assert provider.search_windows == [60]
+    assert [item["title"] for item in state["briefing"]] == [
+        "Markets swing after chip warning",
+        "Storm system closes airports",
+    ]
+    assert "Markets swing after chip warning" in provider.prompts[0]
+    assert "Storm system closes airports" in provider.prompts[0]

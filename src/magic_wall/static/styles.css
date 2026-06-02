@@ -24,6 +24,7 @@ body {
   margin: 0;
   min-height: 100%;
   overflow: hidden;
+  overscroll-behavior: none;
   background: var(--charcoal);
 }
 
@@ -163,6 +164,144 @@ body.story-open .story-sheet {
   transform: translate3d(0, 0, 0);
 }
 
+.source-viewer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  color: var(--ink);
+  background: var(--charcoal);
+  touch-action: manipulation;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate3d(0, 18px, 0);
+  transition:
+    opacity 180ms ease,
+    transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+body.source-open .source-viewer {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate3d(0, 0, 0);
+}
+
+.source-bar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 74px;
+  padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 10px
+    max(10px, env(safe-area-inset-left));
+  background: rgba(7, 8, 8, 0.96);
+  border-bottom: 1px solid var(--line-strong);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.34);
+}
+
+.source-back-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-weight: 900;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.source-back-button {
+  min-width: 118px;
+  padding: 0 18px;
+  background: var(--accent);
+  color: #081006;
+  border-color: transparent;
+}
+
+.source-context {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.source-context span {
+  color: var(--accent);
+  font-size: 0.66rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.source-context strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: clamp(0.84rem, 1.8vw, 1.08rem);
+  line-height: 1.16;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-body {
+  display: block;
+  min-height: 0;
+  overflow-y: auto;
+  padding: clamp(18px, 3vw, 34px);
+  color: rgba(14, 16, 14, 0.92);
+  background: #f8f6ee;
+  overscroll-behavior: contain;
+}
+
+.source-body h2 {
+  max-width: 900px;
+  margin: 8px 0 16px;
+  color: #11130f;
+  font-size: clamp(1.55rem, 4vw, 2.7rem);
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.source-body p {
+  max-width: 900px;
+  margin: 0 0 16px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1rem, 2.3vw, 1.24rem);
+  line-height: 1.48;
+}
+
+.source-body small {
+  display: block;
+  max-width: 900px;
+  color: rgba(14, 16, 14, 0.58);
+  font-family: "JetBrains Mono", "SFMono-Regular", ui-monospace, monospace;
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+
+.source-eyebrow {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  padding: 0 10px;
+  color: #11130f;
+  background: rgba(215, 255, 104, 0.78);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.source-description,
+.source-loading {
+  color: rgba(14, 16, 14, 0.72);
+  font-family:
+    "Satoshi", "Cabinet Grotesk", "Avenir Next", "Segoe UI", system-ui, sans-serif !important;
+  font-weight: 750;
+}
+
+.source-muted {
+  color: rgba(14, 16, 14, 0.6);
+}
+
 .sheet-header,
 .sheet-actions {
   display: grid;
@@ -226,7 +365,7 @@ h2 {
 .hide-button,
 .sheet-actions button,
 .source-link {
-  min-height: 42px;
+  min-height: 50px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.08);
   color: var(--ink);
@@ -240,13 +379,13 @@ h2 {
 }
 
 .hide-button {
-  min-width: 62px;
-  padding: 0 12px;
+  min-width: 76px;
+  padding: 0 14px;
 }
 
 .story-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(240px, 0.84fr);
+  grid-template-columns: minmax(230px, 0.78fr) minmax(0, 1.22fr);
   gap: clamp(8px, 1.4vw, 12px);
   min-height: 0;
 }
@@ -279,31 +418,21 @@ h2 {
 
 #lead-title {
   display: block;
-  max-height: 3.18em;
-  overflow: hidden;
   color: var(--ink);
-  font-size: clamp(1.18rem, 3.4vw, 2.15rem);
+  font-size: clamp(1.05rem, 2.7vw, 1.75rem);
   line-height: 1.06;
   overflow-wrap: anywhere;
 }
 
 #lead-summary,
 #lead-why {
-  display: -webkit-box;
-  overflow: hidden;
   color: var(--muted);
-  font-size: clamp(0.78rem, 1.8vw, 0.92rem);
+  font-size: clamp(0.76rem, 1.55vw, 0.9rem);
   line-height: 1.3;
-  -webkit-box-orient: vertical;
-}
-
-#lead-summary {
-  -webkit-line-clamp: 2;
 }
 
 #lead-why {
   color: rgba(250, 250, 246, 0.78);
-  -webkit-line-clamp: 2;
 }
 
 .tag-row {
@@ -364,7 +493,7 @@ h2 {
 .story-list {
   display: grid;
   align-content: start;
-  gap: 7px;
+  gap: 8px;
   min-height: 0;
   overflow-y: auto;
   padding-right: 2px;
@@ -373,15 +502,16 @@ h2 {
 .story-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 6px;
+  gap: 5px;
   align-items: start;
   width: 100%;
-  min-height: 58px;
-  padding: 10px 11px;
+  min-height: 104px;
+  padding: 12px 14px;
   color: var(--ink);
   text-align: left;
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid var(--line);
+  text-decoration: none;
   opacity: 0;
   transform: translate3d(0, 7px, 0);
   animation: rise 360ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -389,19 +519,46 @@ h2 {
 }
 
 .story-row strong {
-  display: -webkit-box;
-  overflow: hidden;
-  font-size: clamp(0.82rem, 1.8vw, 0.96rem);
-  line-height: 1.12;
+  font-size: clamp(0.82rem, 1.5vw, 0.98rem);
+  line-height: 1.14;
   overflow-wrap: anywhere;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 .story-row > span {
   color: var(--faint);
   font-size: 0.66rem;
   text-transform: uppercase;
+}
+
+.story-row p {
+  color: var(--muted);
+  font-size: clamp(0.68rem, 1.25vw, 0.8rem);
+  line-height: 1.32;
+}
+
+.story-row small {
+  display: block;
+  color: var(--faint);
+  font-family: "JetBrains Mono", "SFMono-Regular", ui-monospace, monospace;
+  font-size: 0.62rem;
+  line-height: 1.35;
+}
+
+.briefing-card {
+  border-left: 3px solid var(--accent);
+}
+
+.briefing-card:nth-child(2n) {
+  border-left-color: var(--blue);
+}
+
+.briefing-card:nth-child(3n) {
+  border-left-color: var(--coral);
+}
+
+.system-row {
+  min-height: 66px;
+  background: rgba(215, 255, 104, 0.08);
 }
 
 .sheet-actions {
@@ -412,7 +569,7 @@ h2 {
 }
 
 .sheet-actions button {
-  min-height: 44px;
+  min-height: 54px;
   padding: 0 10px;
   font-weight: 900;
 }
@@ -516,5 +673,15 @@ button:disabled {
 
   .sheet-actions {
     grid-template-columns: 1fr;
+  }
+
+  .source-bar {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .source-back-button {
+    min-width: 0;
+    padding: 0 11px;
   }
 }

@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import AppConfig, ConfigError
 from .generator import MagicWallGenerator
+from .source_preview import fetch_source_preview
 from .storage import WallStorage
 
 
@@ -98,6 +99,16 @@ def create_app(
         asyncio.create_task(generate_locked())
         storage.mark_generating(message="Manual refresh started.")
         return {"status": "queued", "message": "Manual refresh started."}
+
+    @app.get("/api/source-preview")
+    async def source_preview(url: str) -> dict:
+        try:
+            preview = await asyncio.to_thread(fetch_source_preview, url)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:  # pragma: no cover - network boundary
+            raise HTTPException(status_code=502, detail=f"Source preview failed: {exc}") from exc
+        return preview.to_dict()
 
     @app.get("/media/{name}", include_in_schema=False)
     async def media(name: str) -> FileResponse:

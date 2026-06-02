@@ -17,11 +17,24 @@
 
       <button id="touch-catcher" class="touch-catcher" type="button" aria-label="Show story details"></button>
 
-      <section id="story-sheet" class="story-sheet" aria-label="Wallpaper story" aria-hidden="true">
+      <section id="source-viewer" class="source-viewer" aria-label="Source article" aria-hidden="true">
+        <header class="source-bar">
+          <button id="close-source" class="source-back-button" type="button">Briefing</button>
+          <div class="source-context">
+            <span id="source-label">Source article</span>
+            <strong id="source-title">Opening source</strong>
+          </div>
+        </header>
+        <article id="source-body" class="source-body" aria-live="polite">
+          <p class="source-loading">Loading source preview...</p>
+        </article>
+      </section>
+
+      <section id="story-sheet" class="story-sheet" aria-label="World Machine briefing" aria-hidden="true">
         <header class="sheet-header">
           <div>
-            <p id="status" class="status">Wallpaper Story</p>
-            <h1>What It Is Based On</h1>
+            <p id="status" class="status">World Machine</p>
+            <h1>Briefing Sectors</h1>
           </div>
           <div class="time-stack">
             <time id="clock">--:--</time>
@@ -31,7 +44,7 @@
         </header>
 
         <div class="story-grid">
-          <article class="story-hero" aria-label="Selected news story">
+          <article class="story-hero" aria-label="Primary briefing sector">
             <div class="panel-kicker">
               <span id="lead-category">news anchor</span>
               <span id="lead-heat">current art</span>
@@ -43,9 +56,9 @@
             <a id="lead-source" class="source-link" href="#" target="_blank" rel="noreferrer">Open source</a>
           </article>
 
-          <section class="story-meta-panel" aria-label="Wallpaper metadata">
+          <section class="story-meta-panel" aria-label="Briefing articles">
             <div class="story-list-header">
-              <span>Artwork</span>
+              <span>Article Chambers</span>
               <span id="next-refresh"></span>
             </div>
             <div id="story-list" class="story-list"></div>

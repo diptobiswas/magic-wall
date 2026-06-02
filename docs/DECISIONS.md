@@ -8,6 +8,10 @@ The X Pulse/dashboard feature was removed because trend checks failed too often.
 
 Art generation now gathers public-feed candidates first, ranks them locally, and uses the text model to choose from finalists without web search. OpenAI web search remains a fallback for empty or unusable source-mesh results.
 
+## World Machine Infographics
+
+New generations use a multi-story World Machine Report prompt at medium image quality. The state keeps `story` for compatibility and adds `briefing` for the article sectors that drive the image and touch overlay.
+
 ## No New Frontend Build Step
 
 The kiosk stays static HTML/CSS/JS to keep Raspberry Pi install simple.

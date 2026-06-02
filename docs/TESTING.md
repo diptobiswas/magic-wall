@@ -10,9 +10,9 @@
 ## Coverage Focus
 
 - Config defaults and secret redaction.
-- Prompt construction and JSON extraction.
+- World Machine prompt construction and JSON extraction.
 - Source-mesh story ranking, no-web selection, and paid-search fallback behavior.
-- Art generation state writes.
+- Art generation state writes, including compatibility `story` and multi-story `briefing`.
 - Legacy dashboard state removal from API responses.
 - Server endpoints for state and art refresh.
 - Installer service rendering.
@@ -21,7 +21,8 @@
 
 Boot the app, open `http://127.0.0.1:8765`, and verify:
 
-- Story overlay renders without overlap.
-- Source link and metadata rows are legible.
+- Briefing overlay renders without overlap.
+- Article chamber rows, source link, and metadata are legible.
+- Source links open a readable in-app preview, never a new tab, and the `Briefing` button returns without losing kiosk context.
 - `Hide` and `New art` buttons respond.
 - Empty, generating, ready, and error states are legible.

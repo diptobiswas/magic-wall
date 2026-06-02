@@ -9,31 +9,23 @@ from typing import Any
 from .models import NewsStory
 
 
-AI_SLOP_MASTERPIECE_THEME = (
-    "Create an intentionally outrageous, maximalist image that feels like the absolute pinnacle of "
-    "'AI slop': a hyper-detailed, glossy, oversaturated digital collage with way too many unrelated "
-    "subjects crammed together. Make it look absurdly polished yet nonsensical. Include a majestic "
-    "wolf with glowing blue eyes, a lion made of lightning, a chrome astronaut riding a tiger through "
-    "space, a cute anime-style girl with giant reflective eyes, a baby wearing a gold crown, a "
-    "futuristic city skyline, floating castles, waterfalls pouring into the clouds, a phoenix, a sports "
-    "car with impossible reflections, giant mushrooms, neon butterflies, a galaxy sky, rainbow energy "
-    "beams, dramatic lens flares, sparkles everywhere, and overly cinematic volumetric lighting. Add too "
-    "many visual effects: rim light, bokeh, mist, fire, lightning, glossy surfaces, glitter, smoke, and "
-    "a fake-deep inspirational vibe. Composition should be overcrowded, chaotic, visually loud, and "
-    "hilariously over-rendered, with every area packed with detail. The image should look like a seminal "
-    "masterpiece of AI slop: beautiful at first glance, ridiculous upon inspection."
+WORLD_MACHINE_THEME = (
+    "Create a wildly imaginative but decipherable World Machine Report: an exploded-view planet-machine "
+    "floating in space, with each current news article turned into a labeled mechanical sector. The image "
+    "should feel like a collectible premium infographic poster from the future, not a normal dashboard. "
+    "Make the machine strange, dense, kinetic, and beautiful, while preserving a strict information "
+    "hierarchy: one title, large article labels, obvious symbols, tiny chart-like signals, consequence "
+    "tags, a legend, and a visible timeline orbit. The spectacle must serve the information."
 )
 
 
 STYLE_ROTATION = [
-    "premium fantasy poster chaos, all subjects rendered with impossible glossy detail",
-    "overproduced cinematic concept art with rainbow lighting and fake profundity",
-    "hyperreal viral-thumbnail collage where every object is the main character",
-    "ultra-polished cosmic dreamboard with absurd luxury surfaces and mythic animals",
-    "maximalist AI-art showcase with too much rim light, sparkle, and drama",
-    "overcrowded inspirational desktop wallpaper, beautiful and nonsensical",
-    "shiny sci-fi fantasy mashup with every trendy visual trope turned up",
-    "hilariously dense prompt-engineered masterpiece with no quiet corners",
+    "exploded-view planet machine with five readable article sectors",
+    "retro-futurist control room fused into a world-machine cutaway",
+    "glowing orbital timeline around a fractured mechanical earth",
+    "sci-fi museum diagram with premium editorial data labels",
+    "luminous reactor-core planet with article chambers and source chips",
+    "cinematic technical poster with chart glyphs and consequence tags",
 ]
 
 
@@ -87,6 +79,47 @@ def build_news_search_prompt(
     )
 
 
+def build_news_briefing_search_prompt(
+    *,
+    now: datetime,
+    window_minutes: int,
+    previous_stories: list[dict[str, Any]] | None = None,
+) -> str:
+    now_utc = now.astimezone(timezone.utc)
+    since = now_utc - timedelta(minutes=window_minutes)
+    previous_note = ""
+    if previous_stories:
+        previous_json = json.dumps(previous_stories[:12], ensure_ascii=True)
+        previous_note = (
+            "Avoid reusing these recently used story titles or URLs unless there is no other "
+            f"verifiable briefing item in the window: {previous_json}. "
+        )
+    window_note = (
+        "Prefer stories published or updated in the last one hour. "
+        if window_minutes <= 60
+        else "Prefer major stories published or updated today. "
+    )
+    return (
+        "Find a compact briefing of 3 to 5 real, verifiable current news stories for Magic Wall, "
+        "a Raspberry Pi screen that turns multiple articles into one World Machine infographic. "
+        f"{window_note}"
+        "Use live web search. Choose stories that are distinct from each other and visually legible "
+        "as infographic sectors: markets/economy, weather/climate, science/space, technology, policy, "
+        "culture, world events, or other major public signals. "
+        "If the last-hour window is thin, include the biggest verifiable stories of today so the "
+        "briefing still has multiple items. "
+        "Never invent stories and never return a quiet-hour fallback if web search can verify current news. "
+        f"{previous_note}"
+        f"The current UTC time is {now_utc.isoformat()}. "
+        f"The preferred publication or update time is after {since.isoformat()}. "
+        "Return only compact JSON with key stories, where stories is an array of objects with keys: "
+        "found, title, summary, source_name, source_url, published_at, significance, selection_reason. "
+        "Each title must be a short infographic label: 2 to 7 words and at most 46 characters. "
+        "Titles must be complete phrases with no ellipses or trailing prepositions. "
+        "Each summary must be one sentence, faithful to the source, and not add unsupported facts."
+    )
+
+
 def build_story_selection_prompt(
     *,
     now: datetime,
@@ -124,32 +157,64 @@ def build_story_selection_prompt(
     )
 
 
-def build_image_prompt(*, story: NewsStory, style: str, size: str) -> str:
-    common = (
-        f"Create a landscape artwork for a small 7-inch Raspberry Pi touchscreen at {size}. "
-        "Make it feel like a deranged premium internet meme poster about the news, not a sober editorial illustration. "
-        "Include exactly one short readable text element using the story title, styled like a bold meme caption or poster headline. "
-        "No logos, no interface, no newspaper mastheads, and no extra words beyond that one short text element. "
-        "Keep it legible as a wallpaper from across the room, but do not simplify the image. "
-        "The image must encode the provided real-world information as visual symbolism; do not make "
-        "generic wallpaper art. "
-        f"{AI_SLOP_MASTERPIECE_THEME} "
-        f"Hourly variation style note: {style}."
+def build_briefing_selection_prompt(
+    *,
+    now: datetime,
+    window_minutes: int,
+    candidates: list[dict[str, Any]],
+    previous_stories: list[dict[str, Any]] | None = None,
+) -> str:
+    now_utc = now.astimezone(timezone.utc)
+    since = now_utc - timedelta(minutes=window_minutes)
+    previous_note = ""
+    if previous_stories:
+        previous_json = json.dumps(previous_stories[:12], ensure_ascii=True)
+        previous_note = f"Avoid repeating these recently used titles or URLs: {previous_json}. "
+    candidates_json = json.dumps(candidates[:12], ensure_ascii=True)
+    return (
+        "Choose 3 to 5 distinct candidates for a Magic Wall World Machine infographic briefing. "
+        "Use only the provided candidates. Do not use web search and do not invent unsupported facts. "
+        "Prefer a mix of categories with public significance and clear visual symbols. "
+        f"Prefer candidates published or updated after {since.isoformat()} when useful. "
+        f"The current UTC time is {now_utc.isoformat()}. {previous_note}"
+        "Rewrite each selected title into a complete 2 to 7 word infographic label. "
+        "Every label must make sense by itself, must not end mid-phrase, must not end with a soft "
+        "preposition such as on/of/for/to/with, and must not include ellipses. "
+        "Keep each summary faithful to the selected candidate and one sentence long. "
+        f"Candidates: {candidates_json}. "
+        "Return only compact JSON with key stories, where stories is an array of objects with keys: "
+        "found, candidate_id, title, summary, significance, selection_reason. "
+        "Set found=false only for an unusable item; omit unusable items when possible."
+    )
+
+
+def build_image_prompt(*, story: NewsStory, style: str, size: str, briefing: list[NewsStory] | None = None) -> str:
+    stories = [item for item in (briefing or [story]) if item.found] or [story]
+    briefing_lines = "\n".join(
+        (
+            f"{index}. Label: {item.title}; Summary: {item.summary}; "
+            f"Source: {item.source_name or 'verified source'}; "
+            f"Published: {item.published_at or 'unknown'}; "
+            f"Why it matters: {item.significance or item.selection_reason or 'current public signal'}."
+        )
+        for index, item in enumerate(stories[:5], start=1)
     )
     return (
-        f"{common} Interpret this news story as symbolic art, not literal reportage. "
-        "Make the information payload visibly drive the scene through repeated symbolic anchors, "
-        "object choices, setting, color logic, and foreground action. "
-        "If a famous public figure is central to the story, include a clearly recognizable stylized "
-        "caricature or meme-poster version of that public figure to improve comprehension. "
-        "Do not include private people or unrelated celebrities. "
-        f"Story title: {story.title}. "
-        f"Story summary: {story.summary}. "
-        f"Source: {story.source_name or 'verified web source'} {story.source_url or ''}. "
-        f"Published or updated at: {story.published_at or 'unknown current time'}. "
-        f"Significance: {story.significance or 'major current event'}. "
-        "Avoid sensational gore. Preserve the intentionally overcrowded AI-slop look while making "
-        "the story instantly identifiable as a meme."
+        f"Create a landscape infographic wallpaper for a small 7-inch Raspberry Pi touchscreen at {size}. "
+        f"{WORLD_MACHINE_THEME} "
+        f"Style variation: {style}. "
+        "Use the exact readable main title: WORLD MACHINE REPORT. "
+        "Combine all provided stories into one coherent visual artifact; do not focus on only one story. "
+        "Give each story a distinct large sector with a short label, one visual symbol, one chart-like signal, "
+        "and one short consequence tag. Include a clean bottom legend and an orbital timeline labeled "
+        "PAST, NOW, FUTURE. "
+        "Keep text sparse, large, and safely inside its containers. No tiny paragraphs, no cropped labels, "
+        "no ellipses, no labels that end mid-phrase, "
+        "no real outlet logos, no newspaper mastheads, no UI chrome, and no watermark. "
+        "Do not invent unsupported facts; use visual symbolism for uncertain details. "
+        "Avoid sensational gore and avoid unrelated celebrities or private people. "
+        "News briefing to encode:\n"
+        f"{briefing_lines}"
     )
 
 

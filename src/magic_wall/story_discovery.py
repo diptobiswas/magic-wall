@@ -19,6 +19,7 @@ from .openai_provider import OpenAIProvider
 
 
 MAX_CANDIDATES_FOR_SELECTION = 12
+MAX_BRIEFING_STORIES = 5
 
 
 class StorySelectorProvider(Protocol):
@@ -173,6 +174,81 @@ class SourceMeshStoryProvider:
     def generate_wallpaper(self, *, prompt: str) -> bytes:
         return self.openai_provider.generate_wallpaper(prompt=prompt)
 
+    def find_briefing(
+        self,
+        *,
+        now: datetime,
+        window_minutes: int,
+        previous_stories: list[dict] | None = None,
+    ) -> list[NewsStory]:
+        candidates = self.collector.collect(now=now, window_minutes=window_minutes)
+        ranked = rank_story_candidates(
+            candidates,
+            now=now,
+            window_minutes=window_minutes,
+            previous_stories=previous_stories,
+        )
+        selected = _select_briefing_candidates(ranked)
+        if selected:
+            model_selected = self._select_briefing_with_model(
+                selected=selected,
+                now=now,
+                window_minutes=window_minutes,
+                previous_stories=previous_stories,
+            )
+            if model_selected:
+                return model_selected
+            return [
+                candidate.to_news_story(reason="source-mesh briefing selection")
+                for candidate in selected
+            ]
+        find_briefing = getattr(self.openai_provider, "find_briefing", None)
+        if callable(find_briefing):
+            stories = find_briefing(
+                now=now,
+                window_minutes=window_minutes,
+                previous_stories=previous_stories,
+            )
+            if isinstance(stories, list) and stories:
+                return [story for story in stories if isinstance(story, NewsStory)]
+        return [
+            self.openai_provider.find_top_story(
+                now=now,
+                window_minutes=window_minutes,
+                previous_stories=previous_stories,
+            )
+        ]
+
+    def _select_briefing_with_model(
+        self,
+        *,
+        selected: list[StoryCandidate],
+        now: datetime,
+        window_minutes: int,
+        previous_stories: list[dict] | None,
+    ) -> list[NewsStory]:
+        select_briefing = getattr(self.openai_provider, "select_briefing_from_candidates", None)
+        if not callable(select_briefing):
+            return []
+        candidates = [candidate.to_prompt_dict() for candidate in selected[:MAX_BRIEFING_STORIES]]
+        try:
+            stories = select_briefing(
+                now=now,
+                window_minutes=window_minutes,
+                candidates=candidates,
+                previous_stories=previous_stories,
+            )
+        except Exception:
+            return []
+        return [
+            story
+            for story in stories[:MAX_BRIEFING_STORIES]
+            if _has_required_information(story)
+            and not _title_has_bad_tail(story.title)
+            and "..." not in story.title
+            and "…" not in story.title
+        ]
+
     def _select_with_model(
         self,
         *,
@@ -326,6 +402,58 @@ def rank_story_candidates(
     return sorted(ranked, key=lambda candidate: candidate.score, reverse=True)
 
 
+def _select_briefing_candidates(candidates: list[StoryCandidate]) -> list[StoryCandidate]:
+    selected: list[StoryCandidate] = []
+    used_categories: set[str] = set()
+    used_domains: set[str] = set()
+    for candidate in candidates:
+        category = candidate.category.lower()
+        domain = _domain(candidate.source_url)
+        if category in used_categories and len(selected) < 3:
+            continue
+        if domain and domain in used_domains and len(selected) < 3:
+            continue
+        selected.append(candidate)
+        used_categories.add(category)
+        if domain:
+            used_domains.add(domain)
+        if len(selected) >= MAX_BRIEFING_STORIES:
+            break
+    if len(selected) < min(3, len(candidates)):
+        for candidate in candidates:
+            if candidate not in selected:
+                selected.append(candidate)
+            if len(selected) >= min(MAX_BRIEFING_STORIES, len(candidates)):
+                break
+    return selected
+
+
+def _title_has_bad_tail(title: str) -> bool:
+    words = title.strip().split()
+    if not words:
+        return True
+    return words[-1].lower().strip(".,;:-") in {
+        "a",
+        "an",
+        "and",
+        "as",
+        "at",
+        "by",
+        "creates",
+        "for",
+        "from",
+        "in",
+        "of",
+        "on",
+        "or",
+        "prompts",
+        "says",
+        "the",
+        "to",
+        "with",
+    }
+
+
 def _usable_candidates(candidates: list[StoryCandidate]) -> list[StoryCandidate]:
     usable: list[StoryCandidate] = []
     seen: set[str] = set()
@@ -388,7 +516,17 @@ def _score_candidate(
     visual = _visual_potential_score(candidate.title, candidate.summary)
     novelty_penalty = _novelty_penalty(candidate, previous_stories=previous_stories)
     low_traction_penalty = _low_traction_penalty(candidate)
-    score = freshness + authority + evidence + traction + visual - novelty_penalty - low_traction_penalty
+    feed_noise_penalty = _feed_noise_penalty(candidate)
+    score = (
+        freshness
+        + authority
+        + evidence
+        + traction
+        + visual
+        - novelty_penalty
+        - low_traction_penalty
+        - feed_noise_penalty
+    )
     return replace(candidate, score=round(score, 3))
 
 
@@ -456,6 +594,26 @@ def _low_traction_penalty(candidate: StoryCandidate) -> float:
     points = numbers[0] if numbers else 0
     comments = numbers[1] if len(numbers) > 1 else 0
     return 20 if points < 25 and comments < 5 else 0
+
+
+def _feed_noise_penalty(candidate: StoryCandidate) -> float:
+    text = f"{candidate.title} {candidate.summary} {candidate.source_name}".lower()
+    noisy_phrases = (
+        "licensable picture",
+        "reuters connect",
+        "screening of",
+        "red carpet",
+        "photo gallery",
+        "in pictures",
+        "pictures of the day",
+        "best photos",
+        "award show",
+        "awards:",
+        "film festival",
+    )
+    if any(phrase in text for phrase in noisy_phrases):
+        return 55
+    return 0
 
 
 def _metric_numbers(metric: str | None) -> list[int]:
@@ -534,9 +692,9 @@ def _google_news_queries(*, window_minutes: int) -> list[tuple[str, str]]:
     freshness = " when:1h" if window_minutes <= 60 else ""
     return [
         ("world", f"top news OR global politics OR economy OR court OR conflict{freshness}"),
+        ("business", f"markets OR economy OR company earnings OR energy OR central bank{freshness}"),
         ("technology", f"AI OR technology OR chips OR software OR cybersecurity{freshness}"),
         ("science", f"science OR space OR climate OR energy OR health breakthrough{freshness}"),
-        ("pop culture", f"film OR music OR television OR games OR celebrity{freshness}"),
     ]
 
 

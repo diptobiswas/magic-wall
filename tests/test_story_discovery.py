@@ -56,6 +56,32 @@ class FakeOpenAIProvider:
             selection_reason="best candidate",
         )
 
+    def select_briefing_from_candidates(
+        self,
+        *,
+        now: datetime,
+        window_minutes: int,
+        candidates: list[dict],
+        previous_stories: list[dict] | None = None,
+    ) -> list[NewsStory]:
+        del now, previous_stories, window_minutes
+        self.candidate_batches.append(candidates)
+        if self.fail_selection:
+            raise RuntimeError("selection failed")
+        return [
+            NewsStory(
+                found=True,
+                title=f"Sector {index + 1} Ready",
+                summary=str(candidate["summary"]),
+                source_name=str(candidate["source_name"]),
+                source_url=str(candidate["source_url"]),
+                published_at=str(candidate["published_at"]),
+                significance="model briefing rewrite",
+                selection_reason="briefing candidate",
+            )
+            for index, candidate in enumerate(candidates)
+        ]
+
     def find_top_story(
         self,
         *,
@@ -105,6 +131,7 @@ def make_candidate(
     source_url: str = "https://example.com/story",
     published_at: str = "2026-04-28T11:40:00+00:00",
     metric: str | None = None,
+    category: str = "world",
 ) -> StoryCandidate:
     return StoryCandidate.create(
         title=title,
@@ -113,7 +140,7 @@ def make_candidate(
         source_url=source_url,
         published_at=published_at,
         source_type="test",
-        category="world",
+        category=category,
         metric=metric,
     )
 
@@ -171,6 +198,25 @@ def test_source_mesh_uses_local_top_candidate_when_model_selection_fails(tmp_pat
     assert openai.web_search_windows == []
 
 
+def test_source_mesh_briefing_uses_model_rewritten_labels(tmp_path: Path) -> None:
+    now = datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc)
+    candidates = [
+        make_candidate("Sandy Fire burning in Simi Valley prompts evacuation warnings", category="weather"),
+        make_candidate("Bond jitters test finance chiefs at summit", source_url="https://example.com/bonds"),
+        make_candidate("AI chip deal expands cloud capacity", source_url="https://example.com/ai"),
+    ]
+    openai = FakeOpenAIProvider()
+
+    stories = SourceMeshStoryProvider(
+        make_config(tmp_path),
+        openai_provider=openai,
+        collector=FakeCollector(candidates),
+    ).find_briefing(now=now, window_minutes=60)
+
+    assert [story.title for story in stories] == ["Sector 1 Ready", "Sector 2 Ready", "Sector 3 Ready"]
+    assert openai.candidate_batches
+
+
 def test_rank_story_candidates_penalizes_recent_repeats() -> None:
     now = datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc)
     repeated = make_candidate("Court launches energy market crisis", source_url="https://example.com/repeated")
@@ -184,6 +230,28 @@ def test_rank_story_candidates_penalizes_recent_repeats() -> None:
     )
 
     assert ranked[0].title == fresh.title
+
+
+def test_rank_story_candidates_penalizes_photo_wire_noise() -> None:
+    now = datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc)
+    photo_item = make_candidate(
+        "Licensable picture: The 79th Cannes Film Festival",
+        source_name="Reuters Connect",
+        source_url="https://example.com/photo",
+    )
+    hard_news = make_candidate(
+        "Court launches energy market crisis",
+        source_name="AP News",
+        source_url="https://example.com/court",
+    )
+
+    ranked = rank_story_candidates(
+        [photo_item, hard_news],
+        now=now,
+        window_minutes=60,
+    )
+
+    assert ranked[0].title == hard_news.title
 
 
 def test_story_collector_combines_sources_without_failing_all_sources() -> None:
